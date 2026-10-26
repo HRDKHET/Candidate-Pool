@@ -3,7 +3,7 @@
 // in supabase/schema.sql; the checks here only give friendlier messages.
 import { CONFIG } from '../config.js';
 
-const SUPABASE_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+const SUPABASE_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm';
 let client = null;
 let profile = null;
 

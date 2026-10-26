@@ -4,9 +4,9 @@
 export const CONFIG = {
   // 'demo'     — data lives in this browser only (localStorage); passwords are not checked.
   // 'supabase' — real sign-in and shared data. Fill in the two values below.
-  mode: 'demo',
-  supabaseUrl: '',      // e.g. https://xxxxxxxx.supabase.co
-  supabaseAnonKey: '',  // Project Settings › API › anon public key
+  mode: 'supabase',
+  supabaseUrl: 'https://esmrkunaaakebftfzfrt.supabase.co',
+  supabaseAnonKey: 'sb_publishable_--WHEjolLcH779mubY6-ZA_5j1fHLDG',  // Project Settings › API Keys › publishable key (sb_publishable_…) or legacy anon key
 
   units: ['PJT-PD-1', 'PJT-PD-2', 'PJT-PD-3', 'PJT-PD-4']
 };
