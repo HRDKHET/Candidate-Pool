@@ -1,8 +1,8 @@
 // Supabase store: real sign-in and shared data.
 // Permissions are enforced server-side by row-level security and the functions
 // in supabase/*.sql; the checks here only give friendlier messages.
-import { CONFIG } from '../config.js';
-import { validateInterview } from './rules.js';
+import { CONFIG, accountEmail } from '../config.js';
+import { validateInterview, validateUnitCode } from './rules.js';
 
 const SUPABASE_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm';
 let client = null;
@@ -74,6 +74,33 @@ const isAdmin = () => profile && profile.role === 'admin';
 export const supabaseStore = {
   mode: 'supabase',
 
+  // ฝ่าย › แผนก list. Readable before sign-in (the login page needs it).
+  // Falls back to config.js until supabase/005_divisions.sql has been run.
+  async listOrg() {
+    const c = await sb();
+    const [d, u] = await Promise.all([
+      c.from('divisions').select('id,name,sort').order('sort').order('name'),
+      c.from('units').select('code,division_id,sort').order('sort').order('code')
+    ]);
+    if (d.error || u.error) return CONFIG.divisions;
+    return d.data.map((x) => ({ id: x.id, name: x.name, units: u.data.filter((y) => y.division_id === x.id).map((y) => y.code) }));
+  },
+  async addDivision(name) {
+    const c = await sb();
+    const clean = (name || '').trim();
+    if (!clean) throw new Error('กรุณาระบุชื่อฝ่าย');
+    const { error } = await c.from('divisions').insert({ name: clean });
+    if (error) throw new Error(error.code === '23505' ? `มีฝ่ายชื่อ "${clean}" อยู่แล้ว` : error.message);
+  },
+  // Creates the unit, its login account and its profile in one server function.
+  async addUnit({ code, divisionId, password }) {
+    const c = await sb();
+    const v = validateUnitCode(code);
+    if (!password || password.length < CONFIG.minPasswordLength) throw new Error(`รหัสผ่านต้องมีอย่างน้อย ${CONFIG.minPasswordLength} ตัว`);
+    check(await c.rpc('admin_create_unit', { p_code: v, p_division: divisionId, p_password: password }));
+    return v;
+  },
+
   async getSession() {
     const c = await sb();
     const { data } = await c.auth.getSession();
@@ -85,8 +112,8 @@ export const supabaseStore = {
 
   async signIn({ role, unit, password }) {
     const c = await sb();
-    const email = CONFIG.accounts[role === 'admin' ? 'admin' : unit];
-    if (!email) throw new Error('ไม่พบบัญชีนี้ในการตั้งค่า');
+    if (role !== 'admin' && !unit) throw new Error('กรุณาเลือกแผนก');
+    const email = accountEmail(role, unit);
     if (!password) throw new Error('กรุณาใส่รหัสผ่าน');
     const { error } = await c.auth.signInWithPassword({ email, password });
     if (error) throw new Error('รหัสผ่านไม่ถูกต้อง');

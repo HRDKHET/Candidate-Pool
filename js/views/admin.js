@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -180,7 +180,23 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
 
   function users() {
     return `
-    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี และตั้งรหัสผ่านใหม่ให้แต่ละบัญชี</p></div>
+    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เพิ่มฝ่ายและแผนกใหม่ (พร้อมรหัสผ่าน) เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี และตั้งรหัสผ่านใหม่</p></div>
+    <section class="panel" aria-labelledby="org-title">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+        <h2 id="org-title">ฝ่ายและแผนก</h2>
+        <button type="button" class="btn btn-sm btn-dark" data-add-division>${ICONS.plus} เพิ่มฝ่าย</button>
+      </div>
+      <div class="org-list">
+        ${DIVISIONS.map((d) => `
+          <div class="org-division">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+              <strong style="font-size:16px">${esc(d.name)} <span class="count">${d.units.length} แผนก</span></strong>
+              <button type="button" class="btn btn-sm" data-add-unit="${esc(d.id)}">${ICONS.plus} เพิ่มแผนก</button>
+            </div>
+            <div class="chip-row">${d.units.length ? d.units.map((u) => `<span class="pill" style="background:var(--soft);color:var(--ink)">${esc(u)}</span>`).join('') : '<span class="muted" style="font-size:14px">ยังไม่มีแผนก — ฝ่ายนี้จะแสดงในหน้าเข้าสู่ระบบเมื่อมีแผนกแรก</span>'}</div>
+          </div>`).join('')}
+      </div>
+    </section>
     <div class="table-wrap">
       <table style="min-width:880px">
         <thead><tr><th scope="col">บัญชี</th><th scope="col">ฝ่าย · แผนก</th><th scope="col">ผู้ถือบัญชี</th><th scope="col">ขอบเขตข้อมูล</th><th scope="col">สถานะ</th><th scope="col"><span class="sr-only">การจัดการ</span></th></tr></thead>
@@ -371,6 +387,61 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     });
   }
 
+  // After the org changes, every view and the login page use the new list.
+  async function refreshOrg() {
+    try { setOrg(await store.listOrg()); } catch (e) { /* keep current */ }
+    await reload();
+  }
+
+  function divisionForm() {
+    openModal(`
+      <div class="modal-head"><h2 id="modal-title">เพิ่มฝ่ายใหม่</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
+      <form data-div class="form-grid" novalidate>
+        <div class="field span-2"><label for="dv-name">ชื่อฝ่าย</label><input id="dv-name" class="input" placeholder="เช่น ฝ่ายวิศวกรรม" required></div>
+        <p class="muted span-2" style="font-size:14px">ฝ่ายใหม่จะแสดงในหน้าเข้าสู่ระบบเมื่อเพิ่มแผนกแรกแล้ว</p>
+        <div class="error-box span-2" data-err hidden role="alert"></div>
+        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">เพิ่มฝ่าย</button></div>
+      </form>`, (dlg, close) => {
+      dlg.querySelector('[data-div]').onsubmit = async (e) => {
+        e.preventDefault();
+        const name = dlg.querySelector('#dv-name').value;
+        const err = dlg.querySelector('[data-err]');
+        try { await store.addDivision(name); close(); await refreshOrg(); toast(`เพิ่ม${name.trim()}แล้ว`); }
+        catch (ex) { err.hidden = false; err.textContent = errorMessage(ex); }
+      };
+    });
+  }
+
+  function unitForm(divisionId) {
+    const min = CONFIG.minPasswordLength;
+    openModal(`
+      <div class="modal-head"><h2 id="modal-title">เพิ่มแผนกและบัญชีเข้าสู่ระบบ</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
+      <form data-unit-form class="form-grid" novalidate>
+        <div class="field"><label for="un-div">ฝ่าย</label><select id="un-div" class="input">${DIVISIONS.map((d) => `<option value="${esc(d.id)}" ${d.id === divisionId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="un-code">รหัสแผนก</label><input id="un-code" class="input mono" placeholder="เช่น ENG-01" autocomplete="off" style="text-transform:uppercase" required></div>
+        <div class="field"><label for="un-pw1">รหัสผ่าน (อย่างน้อย ${min} ตัว)</label><input id="un-pw1" class="input" type="password" autocomplete="new-password" minlength="${min}" required></div>
+        <div class="field"><label for="un-pw2">พิมพ์รหัสผ่านอีกครั้ง</label><input id="un-pw2" class="input" type="password" autocomplete="new-password" required></div>
+        <p class="muted span-2" style="font-size:14px">รหัสแผนกใช้เป็นชื่อบัญชีและชื่อ Pool ของแผนก ใช้ได้เฉพาะ A–Z, 0–9 และ - และเปลี่ยนภายหลังไม่ได้</p>
+        <div class="error-box span-2" data-err hidden role="alert"></div>
+        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">สร้างแผนกและบัญชี</button></div>
+      </form>`, (dlg, close) => {
+      dlg.querySelector('[data-unit-form]').onsubmit = async (e) => {
+        e.preventDefault();
+        const err = dlg.querySelector('[data-err]');
+        const fail = (m) => { err.hidden = false; err.textContent = m; };
+        const a = dlg.querySelector('#un-pw1').value, b = dlg.querySelector('#un-pw2').value;
+        if (a.length < min) return fail(`รหัสผ่านต้องมีอย่างน้อย ${min} ตัว`);
+        if (a !== b) return fail('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+        const btn = e.target.querySelector('[type=submit]');
+        btn.disabled = true;
+        try {
+          const code = await store.addUnit({ code: dlg.querySelector('#un-code').value, divisionId: dlg.querySelector('#un-div').value, password: a });
+          close(); await refreshOrg(); toast(`สร้างแผนก ${code} และบัญชีเข้าสู่ระบบแล้ว`);
+        } catch (ex) { btn.disabled = false; fail(errorMessage(ex)); }
+      };
+    });
+  }
+
   async function importFile(file) {
     let parsed;
     try {
@@ -447,6 +518,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       return run(() => store.setUserActive(u.id, !u.active), `${u.active ? 'ปิด' : 'เปิด'}ใช้งานบัญชี ${u.username} แล้ว`);
     }
     if ((el = t('[data-reset]'))) return passwordForm(st.users.find((x) => x.id === el.dataset.reset));
+    if ((el = t('[data-add-division]'))) return divisionForm();
+    if ((el = t('[data-add-unit]'))) return unitForm(el.dataset.addUnit);
     if ((el = t('[data-reset-demo]'))) {
       const ok = await confirmDialog({ title: 'ล้างข้อมูลสาธิต?', body: 'ข้อมูลผู้สมัคร บัญชี และการแจ้งเตือนในเบราว์เซอร์นี้จะกลับเป็นค่าเริ่มต้น', confirm: 'ล้างข้อมูล' });
       if (ok) { await store.resetDemoData(); reload({ animate: true }); toast('ล้างข้อมูลสาธิตแล้ว'); }

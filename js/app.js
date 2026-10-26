@@ -1,7 +1,7 @@
 // Hash router with role guards. #/login, #/pjt (แผนก), #/admin (HRS).
 import { store } from './data/store.js';
 import { loadAnime } from './anim.js';
-import { errorMessage, esc } from './ui.js';
+import { errorMessage, esc, setOrg } from './ui.js';
 import { mountLogin } from './views/login.js';
 import { mountPjt } from './views/pjt.js';
 import { mountAdmin } from './views/admin.js';
@@ -42,7 +42,8 @@ async function route() {
 
 async function start() {
   root.innerHTML = '<div class="loading"><div class="spinner" role="img" aria-label="กำลังโหลด"></div></div>';
-  await loadAnime();
+  // ฝ่าย/แผนก come from the database; config.js stays as the fallback.
+  await Promise.all([loadAnime(), store.listOrg().then(setOrg).catch(() => {})]);
   window.addEventListener('hashchange', route);
   route();
 }

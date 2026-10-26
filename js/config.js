@@ -12,21 +12,17 @@ export const CONFIG = {
   hrsName: 'HRS',
 
   // ฝ่าย › แผนก. Each แผนก (unit) is one login account and one candidate pool.
-  // To add a ฝ่าย later: add an entry here, add its units to the check constraints in
-  // supabase SQL, and create one Supabase user per unit (see accounts below).
+  // The live list is managed by HRS on the "ผู้ใช้และสิทธิ์" page and stored in the
+  // database; this is only the starting set (demo mode, or before 005 is run).
   divisions: [
     { id: 'project', name: 'ฝ่ายโครงการ', units: ['PJT-PD-1', 'PJT-PD-2', 'PJT-PD-3', 'PJT-PD-4'] }
   ],
 
   // People pick an account and type only a password. Supabase still needs an email
-  // per account, so each account has a fixed internal address (never shown, never mailed).
-  accounts: {
-    admin: 'admin-hr@candidate-pool.local',
-    'PJT-PD-1': 'pjt-pd-1@candidate-pool.local',
-    'PJT-PD-2': 'pjt-pd-2@candidate-pool.local',
-    'PJT-PD-3': 'pjt-pd-3@candidate-pool.local',
-    'PJT-PD-4': 'pjt-pd-4@candidate-pool.local'
-  },
+  // per account, so each account has a fixed internal address (never shown, never mailed):
+  // the HRS account below, and "<unit code in lower case>@<accountDomain>" for every unit.
+  hrsAccount: 'admin-hr@candidate-pool.local',
+  accountDomain: 'candidate-pool.local',
   minPasswordLength: 8,
 
   // A unit that picks a candidate must decide within this many hours, otherwise the
@@ -36,4 +32,5 @@ export const CONFIG = {
   newDays: 3
 };
 
-CONFIG.units = CONFIG.divisions.flatMap((d) => d.units);
+export const accountEmail = (role, unit) =>
+  role === 'admin' ? CONFIG.hrsAccount : `${String(unit).toLowerCase()}@${CONFIG.accountDomain}`;

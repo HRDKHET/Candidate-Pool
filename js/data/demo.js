@@ -15,13 +15,18 @@ const fresh = () => ({
     createdAt: new Date(Date.now() - i * 1.5 * 86400000).toISOString()
   })),
   users: structuredClone(SEED_USERS),
+  divisions: structuredClone(CONFIG.divisions),
   notifications: [],
   nextNotif: 1
 });
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (!d.divisions) d.divisions = structuredClone(CONFIG.divisions);
+      return d;
+    }
   } catch (e) { /* storage blocked: fall through to fresh data */ }
   return fresh();
 }
@@ -65,6 +70,28 @@ const where = (c) => (c.interviewMode === 'onsite' ? `Onsite · ${c.interviewLoc
 
 export const demoStore = {
   mode: 'demo',
+
+  async listOrg() { return structuredClone(db.divisions); },
+  async addDivision(name) {
+    requireSession('admin');
+    const clean = (name || '').trim();
+    if (!clean) throw new Error('กรุณาระบุชื่อฝ่าย');
+    if (db.divisions.some((d) => d.name === clean)) throw new Error(`มีฝ่ายชื่อ "${clean}" อยู่แล้ว`);
+    db.divisions.push({ id: 'd' + Date.now(), name: clean, units: [] });
+    save();
+  },
+  async addUnit({ code, divisionId, password }) {
+    requireSession('admin');
+    const v = rules.validateUnitCode(code);
+    if (!password || password.length < CONFIG.minPasswordLength) throw new Error(`รหัสผ่านต้องมีอย่างน้อย ${CONFIG.minPasswordLength} ตัว`);
+    if (db.divisions.some((d) => d.units.includes(v))) throw new Error(`มีแผนก ${v} อยู่แล้ว`);
+    const d = db.divisions.find((x) => x.id === divisionId);
+    if (!d) throw new Error('ไม่พบฝ่ายนี้');
+    d.units.push(v);
+    db.users.push({ id: v.toLowerCase(), username: v.toLowerCase(), role: 'pjt', unit: v, ownerName: '', active: true });
+    save();
+    return v;
+  },
 
   async getSession() { return session; },
 

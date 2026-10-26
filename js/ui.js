@@ -3,9 +3,17 @@ import { CONFIG } from './config.js';
 
 export const POOL = 'HR';
 export const HRS = CONFIG.hrsName;
-export const UNITS = CONFIG.units;
-export const DIVISIONS = CONFIG.divisions;
-export const LOCATIONS = [POOL, ...UNITS];
+// Filled from the database at start-up (setOrg); every module shares these same arrays.
+export const DIVISIONS = [];
+export const UNITS = [];
+export const LOCATIONS = [POOL];
+
+export function setOrg(divisions) {
+  DIVISIONS.splice(0, DIVISIONS.length, ...divisions);
+  UNITS.splice(0, UNITS.length, ...divisions.flatMap((d) => d.units));
+  LOCATIONS.splice(1, LOCATIONS.length - 1, ...UNITS);
+}
+setOrg(CONFIG.divisions);
 
 export function divisionOf(unit) {
   return DIVISIONS.find((d) => d.units.includes(unit)) || null;

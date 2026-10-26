@@ -15,12 +15,16 @@ const TILES = `
   <div class="tile" style="background:#FFD84D"><span style="width:56%;height:56%;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><span style="width:40%;height:40%;border-radius:999px;background:#111"></span></span></div>
   <div class="tile" style="background:#FFB3D1;align-items:flex-start;justify-content:flex-start"><span style="width:70%;height:70%;border-radius:0 0 100% 0;background:#5B3DF5"></span></div>`;
 
+// A ฝ่าย with no แผนก yet has no account to sign in with.
+const loginDivisions = () => DIVISIONS.filter((d) => d.units.length);
+
 function lastChoice() {
+  const list = loginDivisions();
   try {
     const v = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
-    if (v && (v.division === HRS_ID || DIVISIONS.some((d) => d.id === v.division))) return v;
+    if (v && (v.division === HRS_ID || list.some((d) => d.id === v.division))) return v;
   } catch (e) { /* ignore */ }
-  return { division: DIVISIONS[0].id, unit: DIVISIONS[0].units[0] };
+  return list.length ? { division: list[0].id, unit: list[0].units[0] } : { division: HRS_ID, unit: null };
 }
 
 export function mountLogin(root, { store, go }) {
@@ -63,8 +67,8 @@ export function mountLogin(root, { store, go }) {
             <div class="field">
               <label for="sel-div">ฝ่าย</label>
               <select id="sel-div" class="input" data-division>
-                ${DIVISIONS.map((x) => `<option value="${esc(x.id)}" ${x.id === st.division ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
-                <option value="${HRS_ID}" ${isHrs() ? 'selected' : ''}>${esc(HRS)} (ฝ่ายทรัพยากรบุคคล)</option>
+                ${loginDivisions().map((x) => `<option value="${esc(x.id)}" ${x.id === st.division ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+                <option value="${HRS_ID}" ${isHrs() ? 'selected' : ''}>${esc(HRS)}</option>
               </select>
             </div>
             <div data-swap>

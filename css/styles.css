@@ -217,6 +217,10 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- org (ฝ่าย / แผนก) ---------- */
+.org-list { display: flex; flex-direction: column; gap: 12px; }
+.org-division { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 18px; background: var(--soft); }
+
 /* ---------- filters, groups, badges, hold ---------- */
 .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 16px; border-radius: 20px; background: #fff; }
 .filter-bar .field { flex: 1 1 180px; min-width: 0; }

@@ -10,6 +10,14 @@ export const CLEARED_INTERVIEW = {
 };
 const MODES = ['online', 'onsite'];
 
+// Unit codes become account names and pool keys: upper-case letters, digits, hyphen.
+export function validateUnitCode(code) {
+  const v = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(v)) throw new Error('รหัสแผนกใช้ได้เฉพาะ A–Z, 0–9 และ - ยาว 2–20 ตัว เช่น ENG-01');
+  if (v === POOL) throw new Error('ใช้รหัส HR เป็นรหัสแผนกไม่ได้');
+  return v;
+}
+
 export function assertDecision(decision) {
   if (!DECISIONS.includes(decision)) throw new Error('สถานะไม่ถูกต้อง: ' + decision);
 }

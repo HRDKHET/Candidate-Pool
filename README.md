@@ -63,6 +63,7 @@ npx serve .
    ผู้ใช้เข้าสู่ระบบด้วยการ **เลือกบัญชี แล้วใส่รหัสผ่าน** เท่านั้น
    จากนั้นรัน `supabase/003_interviews_notifications.sql` (นัดสัมภาษณ์ Online/Onsite + การแจ้งเตือน)
    และ `supabase/004_hold_and_new.sql` (กำหนดเวลาพิจารณา 72 ชม. + ป้าย New)
+   และ `supabase/005_divisions.sql` (HRS เพิ่มฝ่าย/แผนกและตั้งรหัสผ่านได้จากหน้า ผู้ใช้และสิทธิ์)
 6. **Project Settings › API Keys**: คัดลอก Project URL และ publishable key ใส่ใน `js/config.js` แล้วเปลี่ยน `mode: 'supabase'`
    (anon key ออกแบบมาให้เปิดเผยได้ ความปลอดภัยมาจาก row-level security แต่ **ห้ามใส่ `service_role` key เด็ดขาด**)
 7. เข้าสู่ระบบด้วยบัญชี Admin › Candidate Pool › **นำเข้าจาก Excel** แล้วเลือกไฟล์ `.xlsm` เดิม
