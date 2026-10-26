@@ -76,9 +76,14 @@ export function grow(targets, step = 70) {
 }
 
 // Element slides out, then the callback runs (e.g. re-render without it).
+// The callback always runs once: browsers pause animations in background tabs, so a
+// timer backs up onComplete and the user's action is never left waiting.
 export function leave(el, done) {
-  if (!has(el)) { done(); return; }
-  lib.animate(el, { opacity: 0, x: 40, scale: 0.96, duration: 280, ease: 'inQuad', onComplete: done });
+  let called = false;
+  const once = () => { if (!called) { called = true; done(); } };
+  if (!has(el)) { once(); return; }
+  lib.animate(el, { opacity: 0, x: 40, scale: 0.96, duration: 280, ease: 'inQuad', onComplete: once });
+  setTimeout(once, 400);
 }
 
 export function press(el) {

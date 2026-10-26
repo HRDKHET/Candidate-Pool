@@ -30,8 +30,10 @@ const fromRow = (r) => ({
   projectName: r.project_name || '', remark: r.remark || '',
   requestedBy: r.interview_requested_by, requestedAt: r.interview_requested_at,
   confirmedAt: r.interview_confirmed_at, confirmNote: r.interview_confirm_note || '',
-  location: r.location, assignedBy: r.assigned_by, updatedAt: r.updated_at
+  location: r.location, assignedBy: r.assigned_by, updatedAt: r.updated_at,
+  createdAt: r.created_at, holdUntil: r.hold_until
 });
+// created_at and hold_until are managed by the database (default + trigger), never sent.
 const toRow = (c) => ({
   id: c.id, name: c.name, position: c.position || null, age: c.age ?? null,
   experience: c.experience ?? null, education: c.education || null, company: c.company || null,
@@ -99,6 +101,9 @@ export const supabaseStore = {
 
   async listCandidates() {
     const c = await sb();
+    // Return candidates whose 72-hour decision window has passed (no cron needed:
+    // every page load runs it). Failure here must not block the list.
+    try { await c.rpc('release_expired_holds'); } catch (e) { /* ignore */ }
     return check(await c.from('candidates').select('*').order('hr_match', { ascending: false, nullsFirst: false })).map(fromRow);
   },
 

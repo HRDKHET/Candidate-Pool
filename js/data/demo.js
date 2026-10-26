@@ -3,12 +3,17 @@
 import { SEED_CANDIDATES, SEED_USERS } from './seed.js';
 import { POOL, UNITS, HRS, MODE_LABEL } from '../ui.js';
 import * as rules from './rules.js';
+import { CONFIG } from '../config.js';
 
-const KEY = 'candidate-pool-demo-v2';
+const KEY = 'candidate-pool-demo-v3';
 const SESSION_KEY = 'candidate-pool-demo-session';
 
+// Spread "entered the system" over the past weeks so a few sample rows show "New".
 const fresh = () => ({
-  candidates: structuredClone(SEED_CANDIDATES).map((c) => ({ ...rules.CLEARED_INTERVIEW, ...c })),
+  candidates: structuredClone(SEED_CANDIDATES).map((c, i) => ({
+    ...rules.CLEARED_INTERVIEW, holdUntil: null, ...c,
+    createdAt: new Date(Date.now() - i * 1.5 * 86400000).toISOString()
+  })),
   users: structuredClone(SEED_USERS),
   notifications: [],
   nextNotif: 1
@@ -81,6 +86,13 @@ export const demoStore = {
   // Visibility mirrors the server policy: HRS sees all, a unit sees the central pool and its own pool.
   async listCandidates() {
     const s = requireSession();
+    // Same rule the server runs in release_expired_holds().
+    const now = Date.now();
+    db.candidates.filter((c) => rules.isExpired(c, now)).forEach((c) => {
+      notify(c.location, 'hold_expired', c, `หมดเวลาพิจารณา ${c.id} ${c.name}`,
+        `ครบ ${CONFIG.holdHours} ชม. โดยยังไม่ได้ตัดสินใจ ผู้สมัครถูกคืนเข้า Candidate Pool แล้ว`);
+      put(rules.release(c));
+    });
     const all = db.candidates.slice().sort((a, b) => (b.match ?? 0) - (a.match ?? 0));
     if (s.role === 'admin') return all;
     return all.filter((c) => c.location === POOL || c.location === s.unit);
@@ -91,7 +103,7 @@ export const demoStore = {
     const s = requireSession('pjt');
     const c = find(id);
     const next = put(rules.pjtReturn(c, s.unit));
-    if (c.interviewStatus) notify('HRS', 'interview_cancelled', c, `${s.unit} คืน ${c.id} ${c.name} กลับคลังกลาง`, 'นัดสัมภาษณ์ที่มีอยู่ถูกยกเลิก');
+    if (c.interviewStatus) notify('HRS', 'interview_cancelled', c, `${s.unit} คืน ${c.id} ${c.name} กลับ Candidate Pool`, 'นัดสัมภาษณ์ที่มีอยู่ถูกยกเลิก');
     save();
     return next;
   },
@@ -138,7 +150,8 @@ export const demoStore = {
     rules.assertDecision(record.decision);
     const exists = db.candidates.some((x) => x.id === record.id);
     if (isNew && exists) throw new Error(`Candidate ID ${record.id} มีอยู่แล้ว`);
-    if (isNew) db.candidates.push(stamp({ ...rules.CLEARED_INTERVIEW, ...record })); else put(record);
+    if (isNew) db.candidates.push(stamp({ ...rules.CLEARED_INTERVIEW, holdUntil: null, ...record, createdAt: new Date().toISOString() }));
+    else put(record);
     save();
     return record;
   },
@@ -150,7 +163,11 @@ export const demoStore = {
   async importCandidates(records) {
     requireSession('admin');
     const byId = new Map(db.candidates.map((c) => [c.id, c]));
-    records.forEach((r) => byId.set(r.id, stamp({ ...rules.CLEARED_INTERVIEW, ...(byId.get(r.id) || {}), ...r })));
+    const now = new Date().toISOString();
+    records.forEach((r) => {
+      const old = byId.get(r.id);
+      byId.set(r.id, stamp({ ...rules.CLEARED_INTERVIEW, holdUntil: null, createdAt: now, ...(old || {}), ...r }));
+    });
     db.candidates = [...byId.values()];
     save();
     return records.length;

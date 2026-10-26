@@ -217,6 +217,21 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- filters, groups, badges, hold ---------- */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 16px; border-radius: 20px; background: #fff; }
+.filter-bar .field { flex: 1 1 180px; min-width: 0; }
+.filter-bar .input { min-height: 44px; font-size: 15px; }
+.group { display: flex; flex-direction: column; gap: 14px; }
+.group + .group { margin-top: 12px; }
+.group-title { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+.group-row th { background: var(--soft); color: var(--ink); font-size: 15px; padding: 10px 16px; }
+.new-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; background: #B42318; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .02em; vertical-align: 3px; }
+.hold { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #FFF6D6; color: #5C4300; font-size: 14px; line-height: 1.5; }
+.hold svg { flex: none; margin-top: 2px; }
+.hold.urgent { background: #FDECEA; color: #8A1C12; }
+.hold-mini { display: block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #5C4300; }
+.hold-mini.urgent { color: #B42318; }
+
 /* ---------- interview form & detail ---------- */
 .person-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 44px; gap: 10px; align-items: end; padding: 12px; border-radius: 18px; background: var(--soft); }
 .person-row .input { min-height: 44px; font-size: 15px; }

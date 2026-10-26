@@ -11,7 +11,8 @@ export function bellHTML(list) {
 const KIND = {
   interview_requested: { color: '#FF7A3D', label: 'คำขอนัด' },
   interview_confirmed: { color: '#5B3DF5', label: 'ยืนยันนัด' },
-  interview_cancelled: { color: '#8C8A83', label: 'ยกเลิกนัด' }
+  interview_cancelled: { color: '#8C8A83', label: 'ยกเลิกนัด' },
+  hold_expired: { color: '#B42318', label: 'หมดเวลาพิจารณา' }
 };
 
 // onItem(candidateId) lets the view jump to the related interview.
@@ -31,7 +32,7 @@ export function openNotifications(list, { onItem } = {}) {
           ${n.body ? `<span class="muted" style="font-size:14px">${esc(n.body)}</span>` : ''}
           <span style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
             ${n.link ? `<a class="btn btn-sm btn-violet" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">${ICONS.video} เข้าห้องสัมภาษณ์</a>` : ''}
-            ${n.candidateId && onItem ? `<button type="button" class="btn btn-sm" data-item="${esc(n.candidateId)}">ดูนัดหมาย</button>` : ''}
+            ${n.candidateId && onItem && (n.kind === 'interview_requested' || n.kind === 'interview_confirmed') ? `<button type="button" class="btn btn-sm" data-item="${esc(n.candidateId)}">ดูนัดหมาย</button>` : ''}
           </span>
         </div>
       </li>`;

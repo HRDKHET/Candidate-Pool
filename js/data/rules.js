@@ -1,6 +1,7 @@
 // Business rules shared by both stores. The Supabase store enforces the same
 // rules again on the server (supabase/*.sql); these keep demo mode honest.
 import { POOL, DECISIONS, HRS } from '../ui.js';
+import { CONFIG } from '../config.js';
 
 export const CLEARED_INTERVIEW = {
   interviewAt: null, interviewMode: null, interviewStatus: null, interviewers: [],
@@ -31,25 +32,39 @@ export function validateInterview(s, { requireLink = false } = {}) {
 
 // A PJT may only act on candidates in its own pool, and pick only from the central pool.
 export function pjtPick(c, unit) {
-  if (c.location !== POOL) throw new Error(`${c.id} ไม่อยู่ในคลังกลางแล้ว อาจถูกหน่วยงานอื่นเลือกไป`);
-  return { ...c, ...CLEARED_INTERVIEW, location: unit, assignedBy: unit, decision: 'รอพิจารณา' };
+  if (c.location !== POOL) throw new Error(`${c.id} ไม่อยู่ใน Candidate Pool แล้ว อาจถูกแผนกอื่นเลือกไป`);
+  return {
+    ...c, ...CLEARED_INTERVIEW, location: unit, assignedBy: unit, decision: 'รอพิจารณา',
+    holdUntil: new Date(Date.now() + CONFIG.holdHours * 3600000).toISOString()
+  };
 }
 export function pjtReturn(c, unit) {
   if (c.location !== unit) throw new Error(`${c.id} ไม่ได้อยู่ใน Pool ของ ${unit}`);
-  return { ...c, ...CLEARED_INTERVIEW, location: POOL, assignedBy: null, decision: 'รอพิจารณา' };
+  return { ...c, ...CLEARED_INTERVIEW, location: POOL, assignedBy: null, decision: 'รอพิจารณา', holdUntil: null };
 }
+// Any decision other than "รอพิจารณา" stops the 72-hour clock for good.
 export function pjtDecide(c, unit, decision) {
   if (c.location !== unit) throw new Error(`${c.id} ไม่ได้อยู่ใน Pool ของ ${unit}`);
   assertDecision(decision);
   if (decision === 'นัดสัมภาษณ์แล้ว') throw new Error(`สถานะนี้ตั้งได้เมื่อ ${HRS} ยืนยันนัดเท่านั้น`);
-  return { ...c, ...(decision === 'เรียกสัมภาษณ์' ? {} : CLEARED_INTERVIEW), decision };
+  return {
+    ...c, ...(decision === 'เรียกสัมภาษณ์' ? {} : CLEARED_INTERVIEW), decision,
+    holdUntil: decision === 'รอพิจารณา' ? c.holdUntil : null
+  };
+}
+// Candidates still undecided after the hold go back to the Candidate Pool.
+export function isExpired(c, now = Date.now()) {
+  return c.holdUntil && c.decision === 'รอพิจารณา' && c.location !== POOL && new Date(c.holdUntil).getTime() <= now;
+}
+export function release(c) {
+  return { ...c, ...CLEARED_INTERVIEW, location: POOL, assignedBy: null, decision: 'รอพิจารณา', holdUntil: null };
 }
 // The unit asks HRS to book an interview; HRS must confirm it.
 export function pjtRequest(c, unit, s) {
   if (c.location !== unit) throw new Error(`${c.id} ไม่ได้อยู่ใน Pool ของ ${unit}`);
   const v = validateInterview(s);
   return {
-    ...c, ...CLEARED_INTERVIEW, decision: 'เรียกสัมภาษณ์', interviewStatus: 'requested',
+    ...c, ...CLEARED_INTERVIEW, decision: 'เรียกสัมภาษณ์', interviewStatus: 'requested', holdUntil: null,
     interviewAt: v.interviewAt, interviewMode: v.interviewMode, interviewers: v.interviewers,
     interviewLocation: v.interviewMode === 'onsite' ? v.interviewLocation : '',
     projectName: v.projectName || '', remark: v.remark || '',
@@ -60,7 +75,7 @@ export function pjtRequest(c, unit, s) {
 export function hrsSetInterview(c, s) {
   const v = validateInterview(s, { requireLink: true });
   return {
-    ...c, decision: 'นัดสัมภาษณ์แล้ว', interviewStatus: 'confirmed',
+    ...c, decision: 'นัดสัมภาษณ์แล้ว', interviewStatus: 'confirmed', holdUntil: null,
     interviewAt: v.interviewAt, interviewMode: v.interviewMode, interviewers: v.interviewers,
     interviewLocation: v.interviewMode === 'onsite' ? v.interviewLocation : '',
     meetingLink: v.interviewMode === 'online' ? v.meetingLink : '',
@@ -73,14 +88,14 @@ export function hrsSetInterview(c, s) {
 export function adminMove(c, location) {
   if (c.location === location) return c;
   return {
-    ...c, ...CLEARED_INTERVIEW, location, decision: 'รอพิจารณา',
+    ...c, ...CLEARED_INTERVIEW, location, decision: 'รอพิจารณา', holdUntil: null,
     assignedBy: location === POOL ? null : 'HR'
   };
 }
 export function adminDecide(c, decision) {
   assertDecision(decision);
   const keep = decision === 'เรียกสัมภาษณ์' || decision === 'นัดสัมภาษณ์แล้ว';
-  return { ...c, ...(keep ? {} : CLEARED_INTERVIEW), decision };
+  return { ...c, ...(keep ? {} : CLEARED_INTERVIEW), decision, holdUntil: decision === 'รอพิจารณา' ? c.holdUntil : null };
 }
 
 // Notification text, shared so demo and server read the same.

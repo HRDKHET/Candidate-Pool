@@ -1,10 +1,12 @@
-// แผนก workspace: own pool (decide, request interviews, return), central pool (pick),
+// แผนก workspace: own pool (decide, request interviews, return), the Candidate Pool (pick),
 // interview calendar, candidate comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft
 } from '../ui.js';
+import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
+import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
 import { openInterviewForm, showInterviewDetail } from '../interview.js';
 import { calendarHTML, monthStart, shiftMonth } from '../calendar.js';
 import { openCompare } from '../compare.js';
@@ -17,12 +19,14 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
   const unit = session.unit;
   const st = {
     list: [], notifs: [], view: 'mine', filter: 'all', q: '', loading: true, error: '', animate: true,
-    month: monthStart()
+    month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
     try { st.list = await store.listCandidates(); st.error = ''; }
     catch (e) { st.error = errorMessage(e); }
+    // Listing may have released expired holds, which creates notifications.
+    try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
     st.animate = animate;
     render();
@@ -60,6 +64,16 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     return '';
   }
 
+  // Countdown for candidates this unit picked and has not decided on yet.
+  function holdBlock(c) {
+    const h = holdLeft(c);
+    if (!h) return '';
+    return `<div class="hold${h.urgent ? ' urgent' : ''}" role="note">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
+      <span>เหลือเวลาพิจารณา <strong data-hold="${esc(c.holdUntil)}">${esc(h.text)}</strong> · ถ้ายังไม่ตัดสินใจภายใน ${esc(fmtDateTime(c.holdUntil))} จะกลับเข้า Candidate Pool</span>
+    </div>`;
+  }
+
   function candidateCard(c) {
     const av = avatarFor(c.id);
     const rec = recommendationFor(c);
@@ -72,11 +86,12 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)}</h2>
+          <h2>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
         </div>
         <div class="match"><strong>${pct(c.match)}</strong><span>HR Match</span></div>
       </div>
+      ${holdBlock(c)}
       <div class="bar" aria-hidden="true"><div data-grow style="width:${Math.round(m * 100)}%;background:${bar}"></div></div>
       <dl class="facts">
         <div><dt>บริษัทล่าสุด</dt><dd>${esc(c.company || '—')}</dd></div>
@@ -101,8 +116,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <button type="button" class="btn btn-sm" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
         </div>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
-          <span class="muted" style="font-size:13px">${c.assignedBy === unit ? 'คุณเลือกจากคลังกลาง' : `${esc(HRS)} ส่งเข้า Pool นี้`}</span>
-          <button type="button" class="btn btn-sm" data-return="${esc(c.id)}">${ICONS.back} คืนคลังกลาง</button>
+          <span class="muted" style="font-size:13px">${c.assignedBy === unit ? 'คุณเลือกจาก Candidate Pool' : `${esc(HRS)} ส่งเข้า Pool นี้`}</span>
+          <button type="button" class="btn btn-sm" data-return="${esc(c.id)}">${ICONS.back} คืน Candidate Pool</button>
         </div>
       </div>
     </article>`;
@@ -116,7 +131,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)}</h2>
+          <h2>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · คาดหวัง ${baht(c.salaryExpected)}</span>
         </div>
         <div class="match"><strong style="font-size:26px">${pct(c.match)}</strong><span>HR Match</span></div>
@@ -128,6 +143,12 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       </div>
     </article>`;
   }
+
+  const groupsHTML = (list, card, label) => groupByPosition(list, st.f.group).map(([pos, items]) => `
+    <section class="group" aria-label="${esc(pos || label)}">
+      ${pos ? `<h3 class="group-title">${esc(pos)} <span class="count">${items.length}</span>${items.some(isNew) ? ` ${NEW_BADGE}` : ''}</h3>` : ''}
+      <div class="card-grid">${items.map(card).join('')}</div>
+    </section>`).join('');
 
   const searchBox = () => `
     <div class="search">
@@ -150,12 +171,13 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     ];
     const q = st.q.trim().toLowerCase();
     const matchQ = (c) => !q || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(q);
-    const shownMine = m.filter((c) => (st.filter === 'all' || c.decision === st.filter) && matchQ(c));
-    const shownPool = p.filter(matchQ);
+    const shownMine = applyFilters(m, st.f).filter((c) => (st.filter === 'all' || c.decision === st.filter) && matchQ(c));
+    const shownPool = applyFilters(p, st.f).filter(matchQ);
     const V = st.view;
+    const bar = filterBarHTML(st.f, positionsOf(V === 'mine' ? m : p), { prefix: 'pf' });
     const HEAD = {
-      mine: [`Pool ของ ${unit}`, 'เลือกการตัดสินใจ แล้วส่งคำขอนัดสัมภาษณ์ถึง ' + HRS],
-      market: ['คลังผู้สมัครกลาง', `ผู้สมัครที่ ${HRS} คัดกรองแล้วและยังไม่อยู่ใน Pool ของแผนกใด`],
+      mine: [`Pool ของ ${unit}`, `เลือกการตัดสินใจภายใน ${CONFIG.holdHours} ชม. หลังดึงเข้า Pool แล้วส่งคำขอนัดสัมภาษณ์ถึง ${HRS}`],
+      market: ['Candidate Pool', `ผู้สมัครที่ ${HRS} คัดกรองแล้วและยังไม่อยู่ใน Pool ของแผนกใด`],
       calendar: ['ปฏิทินสัมภาษณ์', `นัดสัมภาษณ์ของ ${unit} ทั้งที่รอยืนยันและยืนยันแล้ว`]
     };
 
@@ -185,7 +207,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
 
       <div class="view-switch" role="group" aria-label="มุมมอง">
         <button type="button" data-view="mine" aria-pressed="${V === 'mine'}"><span class="dot" style="background:#5B3DF5;width:12px;height:12px" aria-hidden="true"></span>Pool ของ ${esc(unit)} <span class="count">${m.length}</span></button>
-        <button type="button" data-view="market" aria-pressed="${V === 'market'}"><span class="dot" style="background:#FF7A3D;width:12px;height:12px;border-radius:12px 12px 0 0" aria-hidden="true"></span>คลังกลาง (${esc(HRS)}) <span class="count">${p.length}</span></button>
+        <button type="button" data-view="market" aria-pressed="${V === 'market'}"><span class="dot" style="background:#FF7A3D;width:12px;height:12px;border-radius:12px 12px 0 0" aria-hidden="true"></span>Candidate Pool <span class="count">${p.length}</span></button>
         <button type="button" data-view="calendar" aria-pressed="${V === 'calendar'}">${ICONS.calendar} ปฏิทิน <span class="count">${m.filter((c) => c.interviewStatus).length}</span></button>
       </div>
 
@@ -205,13 +227,15 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           </div>
           ${searchBox()}
         </div>
-        ${shownMine.length ? `<section class="card-grid" aria-label="ผู้สมัครใน Pool">${shownMine.map(candidateCard).join('')}</section>`
-          : emptyState(m.length ? 'ไม่มีผู้สมัครในมุมมองนี้' : 'ยังไม่มีผู้สมัครใน Pool ของคุณ', m.length ? 'ลองเปลี่ยนตัวกรองหรือคำค้นหา' : `ไปที่แท็บคลังกลาง (${HRS}) เพื่อเลือกผู้สมัคร`)}`
+        ${bar}
+        ${shownMine.length ? groupsHTML(shownMine, candidateCard, 'ผู้สมัครใน Pool')
+          : emptyState(m.length ? 'ไม่มีผู้สมัครในมุมมองนี้' : 'ยังไม่มีผู้สมัครใน Pool ของคุณ', m.length ? 'ลองเปลี่ยนตัวกรองหรือคำค้นหา' : 'ไปที่แท็บ Candidate Pool เพื่อเลือกผู้สมัคร')}`
         : `
-        <div class="info-box">${ICONS.info}<p>คุณเลือกผู้สมัครได้เฉพาะเข้า <strong>Pool ของ ${esc(unit)}</strong> และส่งผู้สมัครใน Pool ของคุณกลับคลังกลางได้ทุกเมื่อ การย้ายไปแผนกอื่นทำได้โดย ${esc(HRS)}</p></div>
+        <div class="info-box">${ICONS.info}<p>คุณเลือกผู้สมัครได้เฉพาะเข้า <strong>Pool ของ ${esc(unit)}</strong> หลังเลือกแล้วมีเวลาพิจารณา <strong>${CONFIG.holdHours} ชม.</strong> ถ้ายังไม่ตัดสินใจ ผู้สมัครจะกลับเข้า Candidate Pool อัตโนมัติ การย้ายไปแผนกอื่นทำได้โดย ${esc(HRS)}</p></div>
         <div class="toolbar"><span></span>${searchBox()}</div>
-        ${shownPool.length ? `<section class="card-grid" aria-label="คลังผู้สมัครกลาง">${shownPool.map(poolCard).join('')}</section>`
-          : emptyState('คลังกลางไม่มีผู้สมัครที่ว่างอยู่', `เมื่อ ${HRS} เพิ่มผู้สมัครใหม่ จะแสดงที่นี่`)}`}
+        ${bar}
+        ${shownPool.length ? groupsHTML(shownPool, poolCard, 'Candidate Pool')
+          : emptyState(p.length ? 'ไม่มีผู้สมัครตามตัวกรองนี้' : 'Candidate Pool ยังไม่มีผู้สมัครที่ว่างอยู่', p.length ? 'ลองเปลี่ยนตัวกรองหรือคำค้นหา' : `เมื่อ ${HRS} เพิ่มผู้สมัครใหม่ จะแสดงที่นี่`)}`}
     </main>`;
 
     if (st.animate && !st.loading) {
@@ -260,7 +284,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       return;
     }
     if ((el = t('[data-refresh]'))) { anim.press(el); return reload({ animate: true }); }
-    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), []);
+    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos });
     if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare]);
     if ((el = t('[data-view]'))) { st.view = el.dataset.view; st.q = ''; st.animate = true; return render(); }
     if ((el = t('[data-filter]'))) { st.filter = el.dataset.filter; st.animate = true; return render(); }
@@ -290,22 +314,42 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     }
     if ((el = t('[data-pick]'))) {
       const c = byId(el.dataset.pick);
-      return anim.leave(el.closest('[data-card]'), () => run(() => store.pick(c.id), `เลือก ${c.id} ${c.name} เข้า Pool ของ ${unit} แล้ว`, {
-        action: 'เลิกทำ', onAction: () => run(() => store.returnToPool(c.id), `คืน ${c.id} กลับคลังกลางแล้ว`)
+      return anim.leave(el.closest('[data-card]'), () => run(() => store.pick(c.id), `เลือก ${c.id} ${c.name} เข้า Pool ของ ${unit} แล้ว · มีเวลาพิจารณา ${CONFIG.holdHours} ชม.`, {
+        action: 'เลิกทำ', onAction: () => run(() => store.returnToPool(c.id), `คืน ${c.id} กลับ Candidate Pool แล้ว`)
       }));
     }
     if ((el = t('[data-return]'))) {
       const c = byId(el.dataset.return);
       const ok = await confirmDialog({
-        title: `คืน ${c.name} กลับคลังกลาง?`,
+        title: `คืน ${c.name} กลับ Candidate Pool?`,
         body: `ผู้สมัครจะออกจาก Pool ของคุณ และแผนกอื่นเลือกได้ การตัดสินใจและนัดสัมภาษณ์ของคุณจะถูกล้าง${c.interviewStatus ? ` (${HRS} จะได้รับการแจ้งเตือน)` : ''}`,
-        confirm: 'คืนคลังกลาง'
+        confirm: 'คืน Candidate Pool'
       });
       if (!ok) return;
       const card = root.querySelector(`[data-card="${CSS.escape(c.id)}"]`);
-      return anim.leave(card, () => run(() => store.returnToPool(c.id), `ส่ง ${c.id} ${c.name} กลับคลังกลางแล้ว`));
+      return anim.leave(card, () => run(() => store.returnToPool(c.id), `ส่ง ${c.id} ${c.name} กลับ Candidate Pool แล้ว`));
+    }
+    if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; st.animate = true; return render(); }
+  };
+  root.onchange = (e) => {
+    if (updateFilter(st.f, e.target)) {
+      const id = e.target.id;
+      st.animate = true;
+      render();
+      const back = root.querySelector('#' + id);
+      if (back) back.focus();
     }
   };
+  // Keep countdowns current without re-rendering the page.
+  const ticker = setInterval(() => {
+    let expired = false;
+    root.querySelectorAll('[data-hold]').forEach((el) => {
+      const h = holdLeft({ holdUntil: el.dataset.hold, decision: 'รอพิจารณา' });
+      el.textContent = h.text;
+      if (h.ms <= 0) expired = true;
+    });
+    if (expired) reload();
+  }, 30000);
   root.oninput = (e) => {
     if (e.target.id === 'pjt-search') {
       st.q = e.target.value;
@@ -316,11 +360,14 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     }
   };
   window.onfocus = () => { if (!document.getElementById('modal-root').children.length) reload(); };
-  onCleanup(watchNotifications(store, (list) => {
+  const stopNotifs = watchNotifications(store, (list) => {
+    const grew = list.some((n) => n.kind === 'hold_expired' && !n.readAt && !st.notifs.some((o) => o.id === n.id));
     st.notifs = list;
+    if (grew && !st.loading) return reload();
     const bell = root.querySelector('[data-bell]');
     if (bell) bell.outerHTML = bellHTML(list);
-  }));
+  });
+  onCleanup(() => { stopNotifs(); clearInterval(ticker); });
 
   render();
   reload({ animate: true });

@@ -43,7 +43,7 @@ export function mountLogin(root, { store, go }) {
         <section class="hero" aria-labelledby="hero-title">
           <span class="eyebrow" data-enter><span class="dot" style="background:#5B3DF5;width:8px;height:8px"></span>ตลาดกลางผู้สมัคร สำหรับ Line Manager</span>
           <h1 id="hero-title" data-enter>คัดคนที่ใช่<br>ให้งานมีคุณภาพ</h1>
-          <p class="hero-lead" data-enter>เลือกผู้สมัครจากคลังกลางที่ ${esc(HRS)} คัดกรองแล้ว เข้า Pool ของแผนกคุณ เปรียบเทียบ ตัดสินใจ และนัดสัมภาษณ์ได้ในที่เดียว</p>
+          <p class="hero-lead" data-enter>เลือกผู้สมัครจาก Candidate Pool ที่ ${esc(HRS)} คัดกรองแล้ว เข้า Pool ของแผนกคุณ เปรียบเทียบ ตัดสินใจ และนัดสัมภาษณ์ได้ในที่เดียว</p>
           <div class="shapes" aria-hidden="true">
             <div class="shape-grid">${TILES}</div>
             <div class="float-chip" data-float style="left:6%;top:-26px">

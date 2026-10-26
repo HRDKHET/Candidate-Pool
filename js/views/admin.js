@@ -3,9 +3,10 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft
 } from '../ui.js';
 import * as anim from '../anim.js';
+import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
 import { CONFIG } from '../config.js';
 import { openInterviewForm, showInterviewDetail } from '../interview.js';
 import { calendarHTML, monthStart, shiftMonth } from '../calendar.js';
@@ -14,13 +15,13 @@ import { bellHTML, openNotifications, watchNotifications } from '../notify.js';
 
 const TABS = [
   { key: 'overview', label: 'ภาพรวม', dot: '#C8F169', shape: '999px' },
-  { key: 'pool', label: 'Candidate Pool', dot: '#FF7A3D', shape: '12px 12px 0 0' },
+  { key: 'pool', label: 'ผู้สมัครทั้งหมด', dot: '#FF7A3D', shape: '12px 12px 0 0' },
   { key: 'calendar', label: 'ปฏิทินสัมภาษณ์', dot: '#FFB3D1', shape: '0 0 0 12px' },
   { key: 'users', label: 'ผู้ใช้และสิทธิ์', dot: '#8EC5FF', shape: '3px' }
 ];
 const HEAD = {
   overview: ['ภาพรวมระบบ', 'สรุปผู้สมัครทุก Pool และคำขอนัดสัมภาษณ์ที่รอยืนยัน'],
-  pool: ['Candidate Pool', `ในฐานะ ${HRS} คุณส่งผู้สมัครเข้า Pool ของทุกแผนก ดึงกลับ จัดนัด และแก้ไขสถานะได้ทุกรายการ`],
+  pool: ['ผู้สมัครทั้งหมด', `ในฐานะ ${HRS} คุณส่งผู้สมัครเข้า Pool ของทุกแผนก ดึงกลับ Candidate Pool จัดนัด และแก้ไขสถานะได้ทุกรายการ`],
   calendar: ['ปฏิทินสัมภาษณ์', 'นัดสัมภาษณ์ของทุกแผนก คลิกที่นัดเพื่อดูรายละเอียดหรือยืนยัน'],
   users: ['ผู้ใช้และสิทธิ์', 'บัญชีเข้าสู่ระบบแยกตามแผนก แต่ละแผนกเลือกผู้สมัครได้เฉพาะเข้า Pool ของตนเอง']
 };
@@ -28,14 +29,14 @@ const YES = 'background:#E8FBC4;color:#2E4A00';
 const PART = 'background:#E4DDFF;color:#2A1A8C';
 const NO = 'background:#ECEBE7;color:#3D3C38';
 const PERMS = [
-  ['ดูผู้สมัคร', 'ทุก Pool', YES, 'คลังกลาง + Pool ตนเอง', PART],
-  ['เลือกผู้สมัครเข้า Pool', 'ส่งเข้า Pool ใดก็ได้', YES, 'เฉพาะ Pool ตนเอง', PART],
-  ['คืนผู้สมัครกลับคลังกลาง', 'ทุก Pool', YES, 'เฉพาะ Pool ตนเอง', PART],
+  ['ดูผู้สมัคร', 'ทุก Pool', YES, 'Candidate Pool + Pool ตนเอง', PART],
+  ['เลือกผู้สมัครเข้า Pool', 'ส่งเข้า Pool ใดก็ได้', YES, 'เฉพาะ Pool ตนเอง (พิจารณาภายใน 72 ชม.)', PART],
+  ['คืนผู้สมัครกลับ Candidate Pool', 'ทุก Pool', YES, 'เฉพาะ Pool ตนเอง', PART],
   ['ย้ายผู้สมัครข้าม Pool แผนก', 'ได้', YES, 'ไม่ได้', NO],
   ['Executive Decision', 'ทุกรายการ', YES, 'เฉพาะ Pool ตนเอง', PART],
   ['นัดสัมภาษณ์', 'จัดนัด / ยืนยันนัด + ส่งลิงก์', YES, 'ส่งคำขอนัด', PART],
   ['ปฏิทินสัมภาษณ์', 'ทุกแผนก', YES, 'เฉพาะแผนกตนเอง', PART],
-  ['เปรียบเทียบผู้สมัคร', 'ทุก Pool', YES, 'คลังกลาง + Pool ตนเอง', PART],
+  ['เปรียบเทียบผู้สมัคร', 'ทุก Pool', YES, 'Candidate Pool + Pool ตนเอง', PART],
   ['เพิ่ม / แก้ไข / นำเข้าข้อมูลผู้สมัคร', 'ได้', YES, 'ไม่ได้', NO],
   ['จัดการบัญชีผู้ใช้และรหัสผ่าน', 'ได้', YES, 'ไม่ได้', NO]
 ];
@@ -43,7 +44,7 @@ const PERMS = [
 export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   const st = {
     tab: 'overview', list: [], users: [], notifs: [], loc: 'all', q: '', loading: true, error: '',
-    animate: true, month: monthStart()
+    animate: true, month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
@@ -51,6 +52,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       const [list, users] = await Promise.all([store.listCandidates(), store.listUsers()]);
       st.list = list; st.users = users; st.error = '';
     } catch (e) { st.error = errorMessage(e); }
+    try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
     st.animate = animate;
     render();
@@ -67,7 +69,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     const reqs = requests();
     const kpis = [
       { label: 'ผู้สมัครทั้งหมด', v: total, bg: '#fff', fg: '#111', deco: '#5B3DF5', shape: '999px' },
-      { label: 'อยู่ในคลังกลาง', v: inPool, bg: '#FFD84D', fg: '#111', deco: '#fff', shape: '88px 0 0 0' },
+      { label: 'อยู่ใน Candidate Pool', v: inPool, bg: '#FFD84D', fg: '#111', deco: '#fff', shape: '88px 0 0 0' },
+      { label: `ใหม่ (${CONFIG.newDays} วัน)`, v: L.filter(isNew).length, bg: '#C8F169', fg: '#111', deco: '#5B3DF5', shape: '0 0 88px 0' },
       { label: 'อยู่ใน Pool แผนก', v: total - inPool, bg: '#8EC5FF', fg: '#111', deco: '#111', shape: '0 88px 0 0' },
       { label: 'คำขอนัดรอยืนยัน', v: reqs.length, bg: '#FF7A3D', fg: '#111', deco: '#FFB3D1', shape: '999px' },
       { label: 'นัดสัมภาษณ์แล้ว', v: L.filter((c) => c.interviewStatus === 'confirmed').length, bg: '#5B3DF5', fg: '#fff', deco: '#C8F169', shape: '88px 0 0 0' }
@@ -128,9 +131,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
 
   function pool() {
     const q = st.q.trim().toLowerCase();
-    const rows = st.list.filter((c) => (st.loc === 'all' || c.location === st.loc) &&
+    const rows = applyFilters(st.list, st.f).filter((c) => (st.loc === 'all' || c.location === st.loc) &&
       (!q || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(q)));
     const chips = [['all', 'ทั้งหมด', st.list.length], ...LOCATIONS.map((l) => [l, locLabel(l), st.list.filter((c) => c.location === l).length])];
+    const groups = groupByPosition(rows, st.f.group);
     return `
     <div class="toolbar">
       <div class="chip-row" role="group" aria-label="กรองตาม Pool">
@@ -138,17 +142,18 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       </div>
       <div class="search"><label for="adm-search" class="sr-only">ค้นหาผู้สมัคร</label>${ICONS.search}<input id="adm-search" class="input" type="search" placeholder="ค้นหาชื่อ, ID หรือตำแหน่ง" value="${esc(st.q)}"></div>
     </div>
+    ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af' })}
     <div class="table-wrap">
       <table style="min-width:1080px">
         <thead><tr><th scope="col">ID</th><th scope="col">ชื่อ-นามสกุล</th><th scope="col">ตำแหน่ง</th><th scope="col">HR Match</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ส่งเข้า Pool / ดึงกลับ</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
         <tbody>
-          ${rows.length ? rows.map((c) => {
+          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="9">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
             return `<tr data-row>
               <td class="mono" style="font-weight:600">${esc(c.id)}</td>
-              <td><strong style="font-weight:600">${esc(c.name)}</strong></td>
+              <td><strong style="font-weight:600">${esc(c.name)}</strong> ${isNew(c) ? NEW_BADGE : ''}</td>
               <td>${esc(c.position || '—')}</td>
               <td style="font-weight:700">${pct(c.match)}</td>
               <td><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
@@ -158,15 +163,16 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <td>${ist
                 ? `<button type="button" class="pill" data-detail="${esc(c.id)}" style="border:0;cursor:pointer;background:${ist.bg};color:${ist.fg}">${esc(ist.label)}</button>`
                 : `<button type="button" class="btn btn-sm" data-interview="${esc(c.id)}">${ICONS.calendar} จัดนัด</button>`}</td>
-              <td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span></td>
+              <td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span>
+                ${holdLeft(c) ? `<span class="hold-mini${holdLeft(c).urgent ? ' urgent' : ''}">เหลือ ${esc(holdLeft(c).text)}</span>` : ''}</td>
               <td><label class="sr-only" for="mv-${esc(c.id)}">ย้าย ${esc(c.id)}</label>
                 <select id="mv-${esc(c.id)}" class="table-select" data-move="${esc(c.id)}">
                   <option value="">เลือก…</option>
-                  ${LOCATIONS.filter((l) => l !== c.location).map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับคลังกลาง' : 'ส่งเข้า Pool ' + esc(l)}</option>`).join('')}
+                  ${LOCATIONS.filter((l) => l !== c.location).map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : 'ส่งเข้า Pool ' + esc(l)}</option>`).join('')}
                 </select></td>
               <td><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
             </tr>`;
-          }).join('') : '<tr><td colspan="9" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
+          }).join('')).join('') : '<tr><td colspan="9" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
         </tbody>
       </table>
     </div>`;
@@ -186,7 +192,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <td class="mono" style="font-weight:600">${esc(u.username)}</td>
               <td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600"><span aria-hidden="true" style="width:12px;height:12px;border-radius:${ls.shape};background:${ls.color}"></span>${u.role === 'admin' ? esc(HRS) : esc(unitFullLabel(u.unit))}</span></td>
               <td><label class="sr-only" for="own-${esc(u.id)}">ผู้ถือบัญชี ${esc(u.username)}</label><input id="own-${esc(u.id)}" class="input" style="min-height:40px;font-size:14px" data-owner="${esc(u.id)}" value="${esc(u.ownerName)}" placeholder="ระบุชื่อ"></td>
-              <td>${u.role === 'admin' ? 'ทุก Pool + จัดการบัญชี' : 'คลังกลาง + Pool ของ ' + esc(u.unit)}</td>
+              <td>${u.role === 'admin' ? 'ทุก Pool + จัดการบัญชี' : 'Candidate Pool + Pool ของ ' + esc(u.unit)}</td>
               <td><button type="button" class="switch" role="switch" aria-checked="${u.active}" aria-label="เปิดใช้งานบัญชี ${esc(u.username)}" data-active="${esc(u.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${u.active ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}</button></td>
               <td style="text-align:right"><button type="button" class="btn btn-sm" data-reset="${esc(u.id)}">ตั้งรหัสผ่านใหม่</button></td>
             </tr>`;
@@ -426,7 +432,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     }
     if ((el = t('[data-event]')) || (el = t('[data-detail]'))) return detail(byId(el.dataset.event || el.dataset.detail));
     if ((el = t('[data-interview]'))) return interviewForm(byId(el.dataset.interview));
-    if ((el = t('[data-compare-open]'))) return openCompare(st.list, []);
+    if ((el = t('[data-compare-open]'))) return openCompare(st.list, [], { pos: st.f.pos });
+    if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; return render(); }
     if ((el = t('[data-add]'))) return candidateForm(null);
     if ((el = t('[data-edit]'))) return candidateForm(byId(el.dataset.edit));
     if ((el = t('[data-export]'))) {
@@ -447,6 +454,12 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   };
   root.onchange = (e) => {
     const el = e.target;
+    if (updateFilter(st.f, el)) {
+      render();
+      const back = root.querySelector('#' + el.id);
+      if (back) back.focus();
+      return;
+    }
     if (el.dataset.setdec) {
       const id = el.dataset.setdec, prev = byId(id).decision, next = el.value;
       return run(() => store.setDecision(id, next), `เปลี่ยนสถานะ ${id} เป็น "${next}" แล้ว`, {
@@ -456,7 +469,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if (el.dataset.move && el.value) {
       const c = byId(el.dataset.move), to = el.value, from = c.location;
       const row = el.closest('tr');
-      const go = () => run(() => store.moveTo(c.id, to), to === POOL ? `ดึง ${c.id} กลับคลังกลางแล้ว` : `ส่ง ${c.id} เข้า Pool ${to} แล้ว`, {
+      const go = () => run(() => store.moveTo(c.id, to), to === POOL ? `ดึง ${c.id} กลับ Candidate Pool แล้ว` : `ส่ง ${c.id} เข้า Pool ${to} แล้ว`, {
         action: 'เลิกทำ', onAction: () => run(() => store.moveTo(c.id, from), `ย้าย ${c.id} กลับ ${locLabel(from)} แล้ว`)
       });
       return st.loc === 'all' ? go() : anim.leave(row, go);

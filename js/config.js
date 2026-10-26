@@ -27,7 +27,13 @@ export const CONFIG = {
     'PJT-PD-3': 'pjt-pd-3@candidate-pool.local',
     'PJT-PD-4': 'pjt-pd-4@candidate-pool.local'
   },
-  minPasswordLength: 8
+  minPasswordLength: 8,
+
+  // A unit that picks a candidate must decide within this many hours, otherwise the
+  // candidate goes back to the Candidate Pool. Keep in sync with supabase/004_*.sql.
+  holdHours: 72,
+  // Candidates added within this many days show a "New" badge.
+  newDays: 3
 };
 
 CONFIG.units = CONFIG.divisions.flatMap((d) => d.units);

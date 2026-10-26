@@ -46,7 +46,22 @@ export function locStyle(loc) {
   return LOC_STYLE[i < 0 ? 0 : i % LOC_STYLE.length];
 }
 export function locLabel(loc) {
-  return loc === POOL ? `คลังกลาง (${CONFIG.hrsName})` : loc;
+  return loc === POOL ? 'Candidate Pool' : loc;
+}
+
+// "New" = entered the system within CONFIG.newDays.
+export function isNew(c) {
+  return !!c.createdAt && Date.now() - new Date(c.createdAt).getTime() < CONFIG.newDays * 86400000;
+}
+export const NEW_BADGE = '<span class="new-badge">New</span>';
+
+// Time left before a picked candidate returns to the Candidate Pool, or null.
+export function holdLeft(c) {
+  if (!c.holdUntil || c.decision !== 'รอพิจารณา') return null;
+  const ms = new Date(c.holdUntil).getTime() - Date.now();
+  const h = Math.max(0, Math.floor(ms / 3600000));
+  const m = Math.max(0, Math.floor((ms % 3600000) / 60000));
+  return { ms, urgent: ms < 12 * 3600000, text: ms <= 0 ? 'หมดเวลาแล้ว' : h ? `${h} ชม. ${m} นาที` : `${m} นาที` };
 }
 
 const AVATARS = [

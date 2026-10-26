@@ -1,6 +1,7 @@
 // Side-by-side candidate comparison on a radar (spider) chart, up to 4 at once.
-import { esc, ICONS, recommendationFor, baht, pct, openModal } from './ui.js';
+import { esc, ICONS, recommendationFor, baht, pct, openModal, isNew, NEW_BADGE } from './ui.js';
 import * as anim from './anim.js';
+import { positionsOf } from './filters.js';
 
 const MAX = 4;
 const COLORS = [
@@ -59,11 +60,15 @@ function radarSVG(dims, picked) {
   </svg>`;
 }
 
-// all: candidates to choose from; preselected: ids to start with.
-export function openCompare(all, preselected = []) {
+// all: candidates to choose from; preselected: ids to start with;
+// pos: starting position filter (a preselected candidate's position wins).
+export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
   const dims = dimensions(all);
   let picked = preselected.filter((id) => all.some((c) => c.id === id)).slice(0, MAX);
   let q = '';
+  const posOf = (c) => c.position || '(ไม่ระบุตำแหน่ง)';
+  const first = all.find((c) => c.id === picked[0]);
+  let posFilter = first ? posOf(first) : pos;
 
   openModal(`
     <div class="modal-head">
@@ -75,6 +80,13 @@ export function openCompare(all, preselected = []) {
     </div>
     <div class="compare">
       <div class="compare-pick">
+        <div class="field">
+          <label for="cmp-pos">ประเภทตำแหน่ง</label>
+          <select id="cmp-pos" class="input" style="min-height:44px;font-size:15px">
+            <option value="all">ทุกตำแหน่ง</option>
+            ${positionsOf(all).map((p) => `<option value="${esc(p)}" ${p === posFilter ? 'selected' : ''}>${esc(p)} (${all.filter((c) => posOf(c) === p).length})</option>`).join('')}
+          </select>
+        </div>
         <label for="cmp-q" class="sr-only">ค้นหาผู้สมัคร</label>
         <input id="cmp-q" class="input" type="search" placeholder="ค้นหาชื่อ, ID หรือตำแหน่ง" style="min-height:44px;font-size:15px">
         <div class="compare-list" data-list></div>
@@ -86,14 +98,16 @@ export function openCompare(all, preselected = []) {
 
     const drawList = () => {
       const s = q.trim().toLowerCase();
-      const rows = all.filter((c) => !s || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(s));
+      // Picked candidates stay listed even when the position filter changes.
+      const rows = all.filter((c) => picked.includes(c.id) ||
+        ((posFilter === 'all' || posOf(c) === posFilter) && (!s || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(s))));
       listEl.innerHTML = rows.map((c) => {
         const n = picked.indexOf(c.id);
         const full = n < 0 && picked.length >= MAX;
         return `<label class="compare-item${n >= 0 ? ' on' : ''}">
           <input type="checkbox" data-pick="${esc(c.id)}" ${n >= 0 ? 'checked' : ''} ${full ? 'disabled' : ''}>
           <span class="swatch" aria-hidden="true" style="background:${n >= 0 ? COLORS[n].stroke : 'transparent'}"></span>
-          <span style="display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(c.match)}</span></span>
+          <span style="display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(c.match)}</span></span>
         </label>`;
       }).join('') || '<p class="muted" style="padding:12px">ไม่พบผู้สมัคร</p>';
     };
@@ -129,6 +143,7 @@ export function openCompare(all, preselected = []) {
     };
 
     dlg.querySelector('#cmp-q').addEventListener('input', (e) => { q = e.target.value; drawList(); });
+    dlg.querySelector('#cmp-pos').addEventListener('change', (e) => { posFilter = e.target.value; drawList(); });
     listEl.addEventListener('change', (e) => {
       const id = e.target.dataset.pick;
       if (!id) return;
