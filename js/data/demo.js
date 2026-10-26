@@ -1,18 +1,24 @@
 // Demo store: everything lives in this browser's localStorage. Passwords are not
 // checked. Use only to try the workflow — never with real candidate data.
 import { SEED_CANDIDATES, SEED_USERS } from './seed.js';
-import { POOL, UNITS } from '../ui.js';
+import { POOL, UNITS, HRS, MODE_LABEL } from '../ui.js';
 import * as rules from './rules.js';
 
-const KEY = 'candidate-pool-demo-v1';
+const KEY = 'candidate-pool-demo-v2';
 const SESSION_KEY = 'candidate-pool-demo-session';
 
+const fresh = () => ({
+  candidates: structuredClone(SEED_CANDIDATES).map((c) => ({ ...rules.CLEARED_INTERVIEW, ...c })),
+  users: structuredClone(SEED_USERS),
+  notifications: [],
+  nextNotif: 1
+});
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) { /* storage blocked: fall through to fresh data */ }
-  return { candidates: structuredClone(SEED_CANDIDATES), users: structuredClone(SEED_USERS) };
+  return fresh();
 }
 let db = load();
 function save() {
@@ -42,6 +48,15 @@ function put(next) {
   save();
   return next;
 }
+// recipient: 'HRS' or a unit code.
+function notify(recipient, kind, c, title, body, link = '') {
+  db.notifications.unshift({
+    id: db.nextNotif++, recipient, kind, candidateId: c.id, title, body, link,
+    createdAt: new Date().toISOString(), readAt: null
+  });
+  db.notifications = db.notifications.slice(0, 200);
+}
+const where = (c) => (c.interviewMode === 'onsite' ? `Onsite · ${c.interviewLocation}` : 'Online');
 
 export const demoStore = {
   mode: 'demo',
@@ -52,7 +67,7 @@ export const demoStore = {
     const expected = role === 'admin' ? 'admin-hr' : String(unit).toLowerCase();
     const u = db.users.find((x) => x.id === expected);
     if (!u) throw new Error('ไม่พบบัญชีนี้');
-    if (!u.active) throw new Error('บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin (HR)');
+    if (!u.active) throw new Error(`บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ ${HRS}`);
     session = { userId: u.id, username: u.username, role: u.role, unit: u.unit };
     try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) { /* ignore */ }
     return session;
@@ -63,7 +78,7 @@ export const demoStore = {
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
   },
 
-  // Visibility mirrors the server policy: admin sees all, a PJT sees the central pool and its own pool.
+  // Visibility mirrors the server policy: HRS sees all, a unit sees the central pool and its own pool.
   async listCandidates() {
     const s = requireSession();
     const all = db.candidates.slice().sort((a, b) => (b.match ?? 0) - (a.match ?? 0));
@@ -72,20 +87,46 @@ export const demoStore = {
   },
 
   async pick(id) { const s = requireSession('pjt'); return put(rules.pjtPick(find(id), s.unit)); },
-  async returnToPool(id) { const s = requireSession('pjt'); return put(rules.pjtReturn(find(id), s.unit)); },
+  async returnToPool(id) {
+    const s = requireSession('pjt');
+    const c = find(id);
+    const next = put(rules.pjtReturn(c, s.unit));
+    if (c.interviewStatus) notify('HRS', 'interview_cancelled', c, `${s.unit} คืน ${c.id} ${c.name} กลับคลังกลาง`, 'นัดสัมภาษณ์ที่มีอยู่ถูกยกเลิก');
+    save();
+    return next;
+  },
   async setDecision(id, decision) {
     const s = requireSession();
     const c = find(id);
-    if (s.role === 'admin') { rules.assertDecision(decision); return put({ ...c, decision }); }
-    return put(rules.pjtDecide(c, s.unit, decision));
+    if (s.role === 'admin') return put(rules.adminDecide(c, decision));
+    const next = put(rules.pjtDecide(c, s.unit, decision));
+    if (c.interviewStatus && !next.interviewStatus) {
+      notify('HRS', 'interview_cancelled', c, `${s.unit} ยกเลิกนัดสัมภาษณ์ ${c.id} ${c.name}`, `เปลี่ยนสถานะเป็น "${decision}"`);
+      save();
+    }
+    return next;
   },
-  async schedule(id, data) {
-    const s = requireSession();
-    const c = find(id);
-    return put(rules.pjtSchedule(c, s.role === 'admin' ? c.location : s.unit, data));
+  async requestInterview(id, data) {
+    const s = requireSession('pjt');
+    const next = put(rules.pjtRequest(find(id), s.unit, data));
+    notify('HRS', 'interview_requested', next, `${s.unit} ขอนัดสัมภาษณ์ ${next.id} ${next.name}`,
+      `${rules.whenText(next.interviewAt)} · ${where(next)} · ผู้สัมภาษณ์ ${next.interviewers.length} คน`);
+    save();
+    return next;
   },
 
-  // ---- admin only ----
+  // ---- HRS only ----
+  async setInterview(id, data) {
+    requireSession('admin');
+    const next = put(rules.hrsSetInterview(find(id), data));
+    if (next.location !== POOL) {
+      notify(next.location, 'interview_confirmed', next, `${HRS} ยืนยันนัดสัมภาษณ์ ${next.id} ${next.name}`,
+        `${rules.whenText(next.interviewAt)} · ${MODE_LABEL[next.interviewMode]}${next.interviewMode === 'onsite' ? ' · ' + next.interviewLocation : ''}${next.confirmNote ? ' · ' + next.confirmNote : ''}`,
+        next.meetingLink);
+      save();
+    }
+    return next;
+  },
   async moveTo(id, location) {
     requireSession('admin');
     if (location !== POOL && !UNITS.includes(location)) throw new Error('ปลายทางไม่ถูกต้อง');
@@ -97,7 +138,7 @@ export const demoStore = {
     rules.assertDecision(record.decision);
     const exists = db.candidates.some((x) => x.id === record.id);
     if (isNew && exists) throw new Error(`Candidate ID ${record.id} มีอยู่แล้ว`);
-    if (isNew) db.candidates.push(stamp(record)); else put(record);
+    if (isNew) db.candidates.push(stamp({ ...rules.CLEARED_INTERVIEW, ...record })); else put(record);
     save();
     return record;
   },
@@ -109,7 +150,7 @@ export const demoStore = {
   async importCandidates(records) {
     requireSession('admin');
     const byId = new Map(db.candidates.map((c) => [c.id, c]));
-    records.forEach((r) => byId.set(r.id, stamp({ ...(byId.get(r.id) || {}), ...r })));
+    records.forEach((r) => byId.set(r.id, stamp({ ...rules.CLEARED_INTERVIEW, ...(byId.get(r.id) || {}), ...r })));
     db.candidates = [...byId.values()];
     save();
     return records.length;
@@ -130,8 +171,20 @@ export const demoStore = {
     requireSession('admin');
     return 'โหมดสาธิตไม่ตรวจรหัสผ่าน จึงไม่ได้บันทึกรหัสผ่านของ ' + user.username;
   },
-  async resetDemoData() {
-    db = { candidates: structuredClone(SEED_CANDIDATES), users: structuredClone(SEED_USERS) };
+
+  // ---- notifications ----
+  async listNotifications() {
+    const s = requireSession();
+    const me = s.role === 'admin' ? 'HRS' : s.unit;
+    return db.notifications.filter((n) => n.recipient === me).slice(0, 50);
+  },
+  async markNotificationsRead(ids) {
+    requireSession();
+    const set = new Set(ids);
+    const now = new Date().toISOString();
+    db.notifications = db.notifications.map((n) => (set.has(n.id) && !n.readAt ? { ...n, readAt: now } : n));
     save();
-  }
+  },
+
+  async resetDemoData() { db = fresh(); save(); }
 };

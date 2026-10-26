@@ -2,8 +2,27 @@
 import { CONFIG } from './config.js';
 
 export const POOL = 'HR';
+export const HRS = CONFIG.hrsName;
 export const UNITS = CONFIG.units;
+export const DIVISIONS = CONFIG.divisions;
 export const LOCATIONS = [POOL, ...UNITS];
+
+export function divisionOf(unit) {
+  return DIVISIONS.find((d) => d.units.includes(unit)) || null;
+}
+export function unitFullLabel(unit) {
+  const d = divisionOf(unit);
+  return d ? `${d.name} · ${unit}` : unit;
+}
+
+export const MODE_LABEL = { online: 'Online', onsite: 'Onsite' };
+export const INTERVIEW_STATUS = {
+  requested: { label: `รอ ${CONFIG.hrsName} ยืนยันนัด`, color: '#FF7A3D', bg: '#FFF1E8', fg: '#7A2E00' },
+  confirmed: { label: 'ยืนยันนัดแล้ว', color: '#5B3DF5', bg: '#5B3DF5', fg: '#FFFFFF' }
+};
+export function interviewerText(list) {
+  return (list || []).map((p) => [p.name, [p.position, p.department].filter(Boolean).join(', ')].filter(Boolean).join(' — ')).join('; ');
+}
 
 export const DECISIONS = ['รอพิจารณา', 'เรียกสัมภาษณ์', 'นัดสัมภาษณ์แล้ว', 'สำรอง', 'ไม่พิจารณา'];
 export const DECISION_STYLE = {
@@ -27,7 +46,7 @@ export function locStyle(loc) {
   return LOC_STYLE[i < 0 ? 0 : i % LOC_STYLE.length];
 }
 export function locLabel(loc) {
-  return loc === POOL ? 'คลังกลาง (HR)' : loc;
+  return loc === POOL ? `คลังกลาง (${CONFIG.hrsName})` : loc;
 }
 
 const AVATARS = [
@@ -95,6 +114,13 @@ export const ICONS = {
   doc: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
   info: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>',
   shield: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B23C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+  bell: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>',
+  video: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></svg>',
+  pin: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
+  radar: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 6.5-3.5 10.5h-11L3 8.5z"/><path d="M12 7l4.5 3.3-1.7 5.2H9.2l-1.7-5.2z"/></svg>',
+  trash: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+  chevL: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  chevR: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   refresh: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>'
 };
 

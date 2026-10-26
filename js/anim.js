@@ -86,4 +86,10 @@ export function press(el) {
   lib.animate(el, { scale: [{ to: 0.96, duration: 90 }, { to: 1, duration: 260, ease: 'outBack(2)' }] });
 }
 
+// Radar polygons grow out of the chart centre, one after another.
+export function radar(targets) {
+  if (!has(targets)) return;
+  lib.animate(targets, { scale: { from: 0 }, opacity: { from: 0 }, delay: lib.stagger(120), duration: 700, ease: 'outBack(1.2)' });
+}
+
 export function switchIn(el) { enter(el, { y: 12, step: 0, duration: 380 }); }

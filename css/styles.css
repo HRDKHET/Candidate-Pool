@@ -217,6 +217,76 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- interview form & detail ---------- */
+.person-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 44px; gap: 10px; align-items: end; padding: 12px; border-radius: 18px; background: var(--soft); }
+.person-row .input { min-height: 44px; font-size: 15px; }
+.people-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.people-list li { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 14px; background: var(--soft); font-size: 14px; }
+.seg button svg { vertical-align: -3px; }
+.interview-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 12px 18px; border-radius: var(--radius-md); font-size: 14px; }
+.interview-box.requested { background: #FFF1E8; color: #5E2400; border: 1.5px dashed #FF7A3D; }
+.interview-box.confirmed { background: var(--violet); color: #fff; }
+.interview-box a { color: #fff; font-weight: 700; }
+.interview-box .btn { background: #fff; border-color: #fff; color: var(--ink); }
+.interview-box.requested .btn { border-color: var(--line-strong); }
+
+/* ---------- bell & notifications ---------- */
+.bell { position: relative; width: 44px; height: 44px; border-radius: 999px; border: 1.5px solid var(--line-strong); background: #fff; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; }
+.bell-count { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #B42318; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.notif-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.notif { display: flex; gap: 12px; padding: 14px; border-radius: 18px; background: var(--soft); }
+.notif.unread { background: #F1EDFF; }
+.notif-dot { width: 12px; height: 12px; border-radius: 999px; margin-top: 4px; flex: none; }
+
+/* ---------- calendar ---------- */
+.cal-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-right: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wd { font-size: 13px; font-weight: 600; color: var(--muted); padding: 6px 8px; }
+.cal-cell { min-height: 104px; padding: 6px; border-radius: 14px; background: var(--soft); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cal-cell.out { background: transparent; opacity: .55; }
+.cal-cell.today { outline: 2px solid var(--ink); outline-offset: -2px; }
+.cal-day { font-size: 13px; font-weight: 700; }
+.cal-event { border: 0; border-radius: 8px; padding: 4px 6px; font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 26px; }
+.cal-event.requested { background: #FFE2D1; color: #5E2400; }
+.cal-event.confirmed { background: var(--violet); color: #fff; }
+.cal-time { font-family: var(--mono); font-size: 11px; }
+.cal-more { font-size: 12px; color: var(--muted); }
+.agenda { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.agenda-item { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px; border: 0; border-radius: 16px; background: var(--soft); font-size: 15px; }
+.agenda-item:hover { background: #ECEAE3; }
+.agenda-date { width: 52px; height: 52px; flex: none; border-radius: 14px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.agenda-date strong { font-size: 20px; }
+.agenda-date span { font-size: 12px; color: var(--muted); }
+
+/* ---------- compare ---------- */
+.compare { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.compare-pick { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.compare-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.compare-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); cursor: pointer; min-height: 44px; }
+.compare-item.on { background: #F1EDFF; }
+.compare-item input { width: 18px; height: 18px; accent-color: var(--violet); flex: none; }
+.compare-item .swatch { width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--line-strong); flex: none; }
+.compare-chart { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.radar { width: 100%; max-width: 440px; align-self: center; overflow: visible; }
+.radar-label { font-size: 12px; font-weight: 600; fill: var(--ink); font-family: var(--font); }
+.radar-tick { font-size: 10px; fill: var(--muted-2); font-family: var(--mono); }
+.compare-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; font-weight: 600; }
+.compare-legend li { display: flex; align-items: center; gap: 8px; }
+.compare-table { min-width: 460px; }
+.compare-table th, .compare-table td { padding: 10px 12px; }
+.compare-table td.best strong { color: #2B7A0B; }
+
+@media (max-width: 720px) {
+  .person-row { grid-template-columns: minmax(0, 1fr) 44px; }
+  .person-row .field { grid-column: 1; }
+  .person-row .person-remove { grid-column: 2; grid-row: 1; }
+  .cal-cell { min-height: 56px; padding: 4px; }
+  .cal-event { font-size: 0; padding: 0; min-height: 8px; height: 8px; border-radius: 999px; }
+  .cal-event .cal-time { display: none; }
+  .cal-more { display: none; }
+}
+
 @media (max-width: 560px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .kpi { min-height: 104px; padding: 16px 18px; border-radius: 22px; }

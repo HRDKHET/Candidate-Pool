@@ -1,6 +1,6 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, RECOMMENDATIONS, locLabel } from './ui.js';
+import { POOL, UNITS, DECISIONS, RECOMMENDATIONS, locLabel, interviewerText } from './ui.js';
 
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 let loading = null;
@@ -99,7 +99,10 @@ export async function parseWorkbook(file) {
         hrNote: String(raw.hrNote ?? (RECOMMENDATIONS.includes(rec) ? '' : rec)).trim(),
         decision,
         interviewAt: excelDate(raw.interviewAt, true),
-        interviewer: String(raw.interviewer ?? '').trim(),
+        // The workbook has one free-text interviewer cell; position/ฝ่าย are filled in later.
+        interviewers: String(raw.interviewer ?? '').trim() ? [{ name: String(raw.interviewer).trim(), position: '', department: '' }] : [],
+        interviewStatus: excelDate(raw.interviewAt, true) ? (decision === 'นัดสัมภาษณ์แล้ว' ? 'confirmed' : 'requested') : null,
+        interviewMode: excelDate(raw.interviewAt, true) ? 'onsite' : null,
         projectName: String(raw.projectName ?? '').trim(),
         remark: String(raw.remark ?? '').trim(),
         location, assignedBy: location === POOL ? null : 'HR'
@@ -123,7 +126,10 @@ export async function exportWorkbook(candidates) {
     'HR Match %': c.match, 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': c.recommendation,
     'HR Highlight': c.hrNote, 'Executive Decision': c.decision,
     'วัน/เวลา ที่ต้องการนัดสัมภาษณ์': c.interviewAt ? new Date(c.interviewAt).toLocaleString('th-TH') : '',
-    'ชื่อผู้สัมภาษณ์': c.interviewer, 'หน่วยงาน/โครงการ': locLabel(c.location),
+    'สถานะนัด': c.interviewStatus === 'confirmed' ? 'ยืนยันแล้ว' : c.interviewStatus === 'requested' ? 'รอยืนยัน' : '',
+    'รูปแบบ': c.interviewMode === 'online' ? 'Online' : c.interviewMode === 'onsite' ? 'Onsite' : '',
+    'สถานที่ / ลิงก์': c.interviewMode === 'online' ? c.meetingLink : c.interviewLocation,
+    'ชื่อผู้สัมภาษณ์': interviewerText(c.interviewers), 'หน่วยงาน/โครงการ': locLabel(c.location),
     'ชื่อโครงการ': c.projectName, 'หมายเหตุ': c.remark
   }));
   const wb = XLSX.utils.book_new();
