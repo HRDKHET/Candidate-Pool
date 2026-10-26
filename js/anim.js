@@ -56,8 +56,9 @@ export function countUp(els) {
   if (!lib) return;
   els.forEach((el) => {
     const end = Number(el.dataset.value || el.textContent) || 0;
+    // The real value stays in place until the first frame runs, so a background
+    // tab never shows a stale zero.
     const o = { v: 0 };
-    el.textContent = '0';
     lib.animate(o, {
       v: end,
       duration: 800,
