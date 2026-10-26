@@ -45,14 +45,11 @@ function put(next) {
 
 export const demoStore = {
   mode: 'demo',
-  usernameLabel: 'ชื่อผู้ใช้',
 
   async getSession() { return session; },
 
-  async signIn({ role, unit, username }) {
-    const name = (username || '').trim().toLowerCase();
+  async signIn({ role, unit }) {
     const expected = role === 'admin' ? 'admin-hr' : String(unit).toLowerCase();
-    if (name && name !== expected) throw new Error(`โหมดสาธิต: ใช้ชื่อผู้ใช้ ${expected} สำหรับบัญชีนี้`);
     const u = db.users.find((x) => x.id === expected);
     if (!u) throw new Error('ไม่พบบัญชีนี้');
     if (!u.active) throw new Error('บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin (HR)');
@@ -129,9 +126,9 @@ export const demoStore = {
     db.users = db.users.map((u) => (u.id === id ? { ...u, ...patch } : u));
     save();
   },
-  async resetPassword() {
+  async setPassword(user) {
     requireSession('admin');
-    return 'โหมดสาธิตไม่มีรหัสผ่าน จึงไม่มีการส่งลิงก์รีเซ็ต';
+    return 'โหมดสาธิตไม่ตรวจรหัสผ่าน จึงไม่ได้บันทึกรหัสผ่านของ ' + user.username;
   },
   async resetDemoData() {
     db = { candidates: structuredClone(SEED_CANDIDATES), users: structuredClone(SEED_USERS) };

@@ -48,9 +48,11 @@ async function loadProfile() {
   return p;
 }
 
+// Accounts are shown by name (admin-hr, pjt-pd-1 …), never by their internal email.
+const accountName = (p) => (p.role === 'admin' ? 'admin-hr' : String(p.unit).toLowerCase());
+
 export const supabaseStore = {
   mode: 'supabase',
-  usernameLabel: 'อีเมล',
 
   async getSession() {
     const c = await sb();
@@ -58,20 +60,23 @@ export const supabaseStore = {
     if (!data.session) return null;
     const p = profile || await loadProfile();
     if (!p || !p.active) return null;
-    return { userId: p.id, username: p.email, role: p.role, unit: p.unit };
+    return { userId: p.id, username: accountName(p), role: p.role, unit: p.unit };
   },
 
-  async signIn({ role, unit, username, password }) {
+  async signIn({ role, unit, password }) {
     const c = await sb();
-    const { error } = await c.auth.signInWithPassword({ email: (username || '').trim(), password });
-    if (error) throw new Error('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    const email = CONFIG.accounts[role === 'admin' ? 'admin' : unit];
+    if (!email) throw new Error('ไม่พบบัญชีนี้ในการตั้งค่า');
+    if (!password) throw new Error('กรุณาใส่รหัสผ่าน');
+    const { error } = await c.auth.signInWithPassword({ email, password });
+    if (error) throw new Error('รหัสผ่านไม่ถูกต้อง');
     const p = await loadProfile();
     const fail = async (msg) => { await c.auth.signOut(); profile = null; throw new Error(msg); };
     if (!p) return fail('บัญชีนี้ยังไม่ได้กำหนดสิทธิ์ กรุณาติดต่อ Admin (HR)');
     if (!p.active) return fail('บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin (HR)');
     if (p.role !== role) return fail(role === 'admin' ? 'บัญชีนี้ไม่ใช่บัญชี Admin' : 'บัญชีนี้เป็นบัญชี Admin กรุณาเลือก "Admin หลังบ้าน"');
     if (role === 'pjt' && p.unit !== unit) return fail(`บัญชีนี้เป็นของ ${p.unit} ไม่ใช่ ${unit}`);
-    return { userId: p.id, username: p.email, role: p.role, unit: p.unit };
+    return { userId: p.id, username: accountName(p), role: p.role, unit: p.unit };
   },
 
   async signOut() { const c = await sb(); profile = null; await c.auth.signOut(); },
@@ -138,7 +143,7 @@ export const supabaseStore = {
   async listUsers() {
     const c = await sb();
     return check(await c.from('profiles').select('*').order('role').order('unit')).map((p) => ({
-      id: p.id, username: p.email, role: p.role, unit: p.unit, ownerName: p.owner_name || '', active: p.active
+      id: p.id, username: accountName(p), role: p.role, unit: p.unit, ownerName: p.owner_name || '', active: p.active
     }));
   },
   async setUserActive(id, active) {
@@ -150,10 +155,10 @@ export const supabaseStore = {
     const c = await sb();
     check(await c.from('profiles').update({ owner_name: patch.ownerName }).eq('id', id));
   },
-  async resetPassword(user) {
+  // Runs public.admin_set_password, which re-checks that the caller is an active admin.
+  async setPassword(user, password) {
     const c = await sb();
-    const { error } = await c.auth.resetPasswordForEmail(user.username, { redirectTo: location.origin + location.pathname });
-    if (error) throw new Error(error.message);
-    return 'ส่งอีเมลลิงก์ตั้งรหัสผ่านใหม่ไปที่ ' + user.username + ' แล้ว';
+    check(await c.rpc('admin_set_password', { p_user: user.id, p_password: password }));
+    return 'ตั้งรหัสผ่านใหม่ให้ ' + user.username + ' แล้ว';
   }
 };

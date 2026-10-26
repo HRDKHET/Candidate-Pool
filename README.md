@@ -49,15 +49,12 @@ npx serve .
 2. **SQL Editor** › วางเนื้อหา `supabase/schema.sql` แล้วกด Run
 3. **Authentication › Providers › Email**: ปิด "Allow new users to sign up" เพื่อไม่ให้ใครสมัครเองได้
 4. **Authentication › URL Configuration**: ใส่ Site URL เป็นที่อยู่ GitHub Pages ของคุณ (ใช้กับลิงก์รีเซ็ตรหัสผ่าน)
-5. สร้างบัญชี: **Authentication › Users › Add user** (อีเมล + รหัสผ่าน, ติ๊ก Auto Confirm) แล้วผูกสิทธิ์ใน SQL Editor:
-   ```sql
-   insert into public.profiles (id, email, role)
-   select id, email, 'admin' from auth.users where email = 'hr@company.co.th';
-
-   insert into public.profiles (id, email, role, unit)
-   select id, email, 'pjt', 'PJT-PD-1' from auth.users where email = 'pjt1@company.co.th';
-   ```
-6. **Project Settings › API**: คัดลอก Project URL และ `anon public` key ใส่ใน `js/config.js` แล้วเปลี่ยน `mode: 'supabase'`
+5. สร้างบัญชี 5 บัญชี: **Authentication › Users › Add user › Create new user** ติ๊ก Auto Confirm User
+   ใช้อีเมลภายในตามนี้ (ผู้ใช้ไม่ต้องพิมพ์ ระบบไม่ส่งอีเมลไปที่อยู่เหล่านี้) และตั้งรหัสผ่านอย่างน้อย 8 ตัว:
+   `admin-hr@candidate-pool.local`, `pjt-pd-1@candidate-pool.local` … `pjt-pd-4@candidate-pool.local`
+   แล้วรัน `supabase/002_accounts.sql` ใน SQL Editor (ผูกสิทธิ์ + ให้ Admin ตั้งรหัสผ่านใหม่จากหน้าเว็บได้)
+   ผู้ใช้เข้าสู่ระบบด้วยการ **เลือกบัญชี แล้วใส่รหัสผ่าน** เท่านั้น
+6. **Project Settings › API Keys**: คัดลอก Project URL และ publishable key ใส่ใน `js/config.js` แล้วเปลี่ยน `mode: 'supabase'`
    (anon key ออกแบบมาให้เปิดเผยได้ ความปลอดภัยมาจาก row-level security แต่ **ห้ามใส่ `service_role` key เด็ดขาด**)
 7. เข้าสู่ระบบด้วยบัญชี Admin › Candidate Pool › **นำเข้าจาก Excel** แล้วเลือกไฟล์ `.xlsm` เดิม
    ระบบอ่านชีต `Candidate Database` (= คลังกลาง) และ `PJT-PD-1…4` ข้ามชีตที่ซ่อนไว้ และแจ้ง Candidate ID ที่ซ้ำกัน

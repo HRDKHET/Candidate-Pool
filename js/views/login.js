@@ -19,11 +19,10 @@ const TILES = `
   <div class="tile" style="background:#FFB3D1;align-items:flex-start;justify-content:flex-start"><span style="width:70%;height:70%;border-radius:0 0 100% 0;background:#5B3DF5"></span></div>`;
 
 export function mountLogin(root, { store, go }) {
-  const st = { role: 'pjt', unit: UNITS[0], error: '', busy: false, username: '', first: true };
+  const st = { role: 'pjt', unit: UNITS[0], error: '', busy: false, first: true };
 
   function render() {
     const isPjt = st.role === 'pjt';
-    const userHint = store.mode === 'demo' ? (isPjt ? st.unit.toLowerCase() : 'admin-hr') : 'name@company.co.th';
     root.innerHTML = `
     <div class="login">
       <header class="login-head">
@@ -66,12 +65,9 @@ export function mountLogin(root, { store, go }) {
             <div class="info-box" style="font-size:14px">${ICONS.shield}<span>สำหรับทีม HR: ส่งผู้สมัครเข้า Pool ของทุกหน่วยงาน ดึงกลับ แก้ไขสถานะได้ทุกรายการ และจัดการบัญชีผู้ใช้ของทุก PJT</span></div>`}
           </div>
           <form data-form style="display:flex;flex-direction:column;gap:16px" novalidate>
+            <input type="hidden" name="username" autocomplete="username" value="${esc(isPjt ? st.unit.toLowerCase() : 'admin-hr')}">
             <div class="field">
-              <label for="login-user">${esc(store.usernameLabel)}</label>
-              <input id="login-user" class="input" name="username" type="${store.mode === 'demo' ? 'text' : 'email'}" autocomplete="username" placeholder="${esc(userHint)}" value="${esc(st.username)}" ${store.mode === 'demo' ? '' : 'required'}>
-            </div>
-            <div class="field">
-              <label for="login-pass">รหัสผ่าน</label>
+              <label for="login-pass">รหัสผ่านของ ${esc(isPjt ? st.unit : 'Admin (HR)')}</label>
               <input id="login-pass" class="input" name="password" type="password" autocomplete="current-password" ${store.mode === 'demo' ? '' : 'required'}>
             </div>
             ${st.error ? `<div class="error-box" role="alert">${esc(st.error)}</div>` : ''}
@@ -99,23 +95,22 @@ export function mountLogin(root, { store, go }) {
   root.onclick = (e) => {
     const r = e.target.closest('[data-role]');
     if (r && r.dataset.role !== st.role) {
-      st.role = r.dataset.role; st.error = ''; keepUser(); render();
+      st.role = r.dataset.role; st.error = ''; render();
       anim.switchIn(root.querySelector('[data-swap]'));
       return;
     }
     const u = e.target.closest('[data-unit]');
-    if (u) { st.unit = u.dataset.unit; st.error = ''; keepUser(); render(); root.querySelector(`[data-unit="${st.unit}"]`).focus(); }
+    if (u) { st.unit = u.dataset.unit; st.error = ''; render(); root.querySelector(`[data-unit="${st.unit}"]`).focus(); }
   };
-  const keepUser = () => { const el = root.querySelector('#login-user'); if (el) st.username = el.value; };
 
   root.onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target;
+    const password = f.password.value;
     anim.press(f.querySelector('[type=submit]'));
-    st.username = f.username.value;
     st.busy = true; st.error = ''; render();
     try {
-      await store.signIn({ role: st.role, unit: st.unit, username: st.username, password: f.password ? f.password.value : '' });
+      await store.signIn({ role: st.role, unit: st.unit, password });
       go(st.role === 'admin' ? '#/admin' : '#/pjt');
     } catch (err) {
       st.busy = false; st.error = errorMessage(err); render();

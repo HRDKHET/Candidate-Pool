@@ -4,6 +4,7 @@ import {
   locStyle, locLabel, pct, toLocalInput, toast, openModal, confirmDialog, errorMessage
 } from '../ui.js';
 import * as anim from '../anim.js';
+import { CONFIG } from '../config.js';
 
 const TABS = [
   { key: 'overview', label: 'ภาพรวม', dot: '#C8F169', shape: '999px' },
@@ -140,7 +141,7 @@ export function mountAdmin(root, { store, session, signOut }) {
 
   function users() {
     return `
-    ${store.mode === 'supabase' ? `<div class="info-box">${ICONS.info}<p>การสร้างบัญชีใหม่ทำใน Supabase Dashboard › Authentication แล้วเพิ่มแถวในตาราง <span class="mono">profiles</span> (ดูขั้นตอนใน README) ส่วนหน้านี้ใช้เปิด/ปิดบัญชี ตั้งชื่อผู้ถือบัญชี และส่งลิงก์ตั้งรหัสผ่านใหม่</p></div>` : ''}
+    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกบัญชีแล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี และตั้งรหัสผ่านใหม่ให้แต่ละบัญชี</p></div>
     <div class="table-wrap">
       <table style="min-width:880px">
         <thead><tr><th scope="col">ชื่อผู้ใช้</th><th scope="col">หน่วยงาน</th><th scope="col">ผู้ถือบัญชี</th><th scope="col">ขอบเขตข้อมูล</th><th scope="col">สถานะ</th><th scope="col"><span class="sr-only">การจัดการ</span></th></tr></thead>
@@ -154,7 +155,7 @@ export function mountAdmin(root, { store, session, signOut }) {
               <td><label class="sr-only" for="own-${esc(u.id)}">ผู้ถือบัญชี ${esc(u.username)}</label><input id="own-${esc(u.id)}" class="input" style="min-height:40px;font-size:14px" data-owner="${esc(u.id)}" value="${esc(u.ownerName)}" placeholder="ระบุชื่อ"></td>
               <td>${u.role === 'admin' ? 'ทุก Pool + จัดการบัญชี' : 'คลังกลาง + Pool ของ ' + esc(u.unit)}</td>
               <td><button type="button" class="switch" role="switch" aria-checked="${u.active}" aria-label="เปิดใช้งานบัญชี ${esc(u.username)}" data-active="${esc(u.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${u.active ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}</button></td>
-              <td style="text-align:right"><button type="button" class="btn btn-sm" data-reset="${esc(u.id)}">รีเซ็ตรหัสผ่าน</button></td>
+              <td style="text-align:right"><button type="button" class="btn btn-sm" data-reset="${esc(u.id)}">ตั้งรหัสผ่านใหม่</button></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -315,6 +316,35 @@ export function mountAdmin(root, { store, session, signOut }) {
     });
   }
 
+  function passwordForm(u) {
+    const min = CONFIG.minPasswordLength;
+    openModal(`
+      <div class="modal-head">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <h2 id="modal-title">ตั้งรหัสผ่านใหม่</h2>
+          <p class="muted" style="font-size:15px">บัญชี <span class="mono">${esc(u.username)}</span> · รหัสผ่านเดิมจะใช้ไม่ได้ทันที</p>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button>
+      </div>
+      <form data-pw class="form-grid" novalidate>
+        <div class="field span-2"><label for="pw1">รหัสผ่านใหม่ (อย่างน้อย ${min} ตัว)</label><input id="pw1" class="input" type="password" autocomplete="new-password" minlength="${min}" required></div>
+        <div class="field span-2"><label for="pw2">พิมพ์รหัสผ่านใหม่อีกครั้ง</label><input id="pw2" class="input" type="password" autocomplete="new-password" required></div>
+        <div class="error-box span-2" data-err hidden role="alert"></div>
+        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">บันทึกรหัสผ่าน</button></div>
+      </form>`, (dlg, close) => {
+      dlg.querySelector('[data-pw]').onsubmit = async (e) => {
+        e.preventDefault();
+        const a = dlg.querySelector('#pw1').value, b = dlg.querySelector('#pw2').value;
+        const err = dlg.querySelector('[data-err]');
+        const fail = (m) => { err.hidden = false; err.textContent = m; };
+        if (a.length < min) return fail(`รหัสผ่านต้องมีอย่างน้อย ${min} ตัว`);
+        if (a !== b) return fail('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+        try { const msg = await store.setPassword(u, a); close(); toast(msg); }
+        catch (ex) { fail(errorMessage(ex)); }
+      };
+    });
+  }
+
   async function run(action, msg, opts) {
     try { const r = await action(); await reload(); if (msg) toast(typeof msg === 'function' ? msg(r) : msg, opts); }
     catch (e) { toast(errorMessage(e), { error: true }); await reload(); }
@@ -340,11 +370,7 @@ export function mountAdmin(root, { store, session, signOut }) {
       anim.press(el.querySelector('.switch-knob'));
       return run(() => store.setUserActive(u.id, !u.active), `${u.active ? 'ปิด' : 'เปิด'}ใช้งานบัญชี ${u.username} แล้ว`);
     }
-    if ((el = t('[data-reset]'))) {
-      const u = st.users.find((x) => x.id === el.dataset.reset);
-      try { toast(await store.resetPassword(u)); } catch (ex) { toast(errorMessage(ex), { error: true }); }
-      return;
-    }
+    if ((el = t('[data-reset]'))) return passwordForm(st.users.find((x) => x.id === el.dataset.reset));
     if ((el = t('[data-reset-demo]'))) {
       const ok = await confirmDialog({ title: 'ล้างข้อมูลสาธิต?', body: 'ข้อมูลผู้สมัครและบัญชีในเบราว์เซอร์นี้จะกลับเป็นค่าเริ่มต้น', confirm: 'ล้างข้อมูล' });
       if (ok) { await store.resetDemoData(); reload({ animate: true }); toast('ล้างข้อมูลสาธิตแล้ว'); }

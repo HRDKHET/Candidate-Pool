@@ -161,9 +161,4 @@ grant execute on function public.pjt_pick(text), public.pjt_return(text),
   to authenticated;
 
 -- ---------- creating accounts ----------
--- 1. Dashboard › Authentication › Users › Add user (email + password, auto-confirm).
--- 2. Link the user to a role, e.g.:
---    insert into public.profiles (id, email, role, unit)
---    select id, email, 'pjt', 'PJT-PD-1' from auth.users where email = 'pjt1@company.co.th';
---    insert into public.profiles (id, email, role)
---    select id, email, 'admin' from auth.users where email = 'hr@company.co.th';
+-- Next: create the 5 users listed in supabase/002_accounts.sql, then run that file.
