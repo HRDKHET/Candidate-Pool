@@ -2,7 +2,7 @@
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
   esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor, recLabel,
-  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor
+  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, DIMENSIONS
 } from './ui.js';
 
 const fact = (label, value, wide = false) =>
@@ -16,6 +16,18 @@ function salaryFacts(c, showSalary) {
     ? Math.round(((c.salaryExpected - c.salaryCurrent) / c.salaryCurrent) * 100) : null;
   return fact('เงินเดือนปัจจุบัน', baht(c.salaryCurrent)) +
     fact('เงินเดือนคาดหวัง', `${baht(c.salaryExpected)}${raise == null ? '' : ` <span class="muted" style="font-weight:500">(${raise >= 0 ? '+' : ''}${raise}%)</span>`}`);
+}
+
+function scoreSection(c) {
+  const s = c.scores || {};
+  if (!DIMENSIONS.some((d) => s[d.key])) return '';
+  return `
+    <section class="profile-section" aria-labelledby="pf-sc">
+      <h3 id="pf-sc">คะแนนรายมิติ <span class="muted" style="font-size:13px;font-weight:500">จาก ${esc(HRS)} · เต็ม 5</span></h3>
+      <ul class="score-list">${DIMENSIONS.map((d) => `<li><span>${esc(d.full)}</span>${s[d.key]
+        ? `<span class="score-dots" role="img" aria-label="${s[d.key]} จาก 5">${[1, 2, 3, 4, 5].map((x) => `<i class="${x <= s[d.key] ? 'on' : ''}"></i>`).join('')}</span>`
+        : '<span class="muted">—</span>'}</li>`).join('')}</ul>
+    </section>`;
 }
 
 function interviewSection(c) {
@@ -90,6 +102,8 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
       <p style="font-size:15px;line-height:1.7">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       ${cv ? `<a class="btn btn-sm" style="align-self:flex-start" href="${esc(cv)}" target="_blank" rel="noopener noreferrer">${ICONS.doc} เปิด Resume / CV</a>` : '<span class="muted" style="font-size:14px">ไม่มีลิงก์ Resume / CV</span>'}
     </section>
+
+    ${scoreSection(c)}
 
     ${interviewSection(c)}
 

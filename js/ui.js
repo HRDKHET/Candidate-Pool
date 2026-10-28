@@ -46,6 +46,25 @@ export const REC_LABEL = {
   'Strongly Recommend': 'แนะนำอย่างยิ่ง', Recommend: 'แนะนำ', Consider: 'ควรพิจารณา', Review: 'ทบทวน'
 };
 export const recLabel = (r) => REC_LABEL[r] || r || '';
+// Comparison dimensions. HRS scores each 1–5; stored as candidates.scores (supabase/009_*.sql).
+export const DIMENSIONS = [
+  { key: 'exp', label: 'ประสบการณ์', full: 'ประสบการณ์' },
+  { key: 'skill', label: 'ความรู้และทักษะ', full: 'ความรู้และทักษะ' },
+  { key: 'result', label: 'ผลงาน', full: 'ผลงานและผลลัพธ์' },
+  { key: 'career', label: 'เส้นทางอาชีพ', full: 'เส้นทางอาชีพและการเปลี่ยนงาน' },
+  { key: 'learn', label: 'การเรียนรู้', full: 'การศึกษาและการพัฒนาตนเอง' },
+  { key: 'trust', label: 'ความน่าเชื่อถือ', full: 'ความน่าเชื่อถือของข้อมูลใน Resume' },
+  { key: 'tech', label: 'Tech & AI', full: 'การนำเทคโนโลยีและ AI มาใช้ในการทำงาน' }
+];
+// Keeps only known keys with a whole score 1–5.
+export function cleanScores(s) {
+  const out = {};
+  for (const d of DIMENSIONS) {
+    const v = Number(s && s[d.key]);
+    if (s && s[d.key] !== '' && s[d.key] != null && Number.isInteger(v) && v >= 1 && v <= 5) out[d.key] = v;
+  }
+  return out;
+}
 // Accepts the English key or its Thai label; returns the English key, or '' if neither.
 export const recKey = (s) => {
   const t = String(s ?? '').trim();

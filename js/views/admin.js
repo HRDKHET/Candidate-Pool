@@ -1,7 +1,7 @@
 // HRS back office: overview + interview requests, full candidate pool control,
 // interview calendar, users & permissions.
 import {
-  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, MODE_LABEL,
+  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
   confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor
 } from '../ui.js';
@@ -334,6 +334,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก HR Match</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
         <div class="field"><label for="cf-loc">อยู่ที่ Pool</label><select id="cf-loc" name="location" class="input">${LOCATIONS.map((l) => `<option value="${esc(l)}" ${l === v.location ? 'selected' : ''}>${esc(locLabel(l))}</option>`).join('')}</select></div>
         <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="3">${esc(v.hrNote || '')}</textarea></div>
+        <fieldset class="span-2 score-set">
+          <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้ในกราฟเปรียบเทียบ</legend>
+          ${DIMENSIONS.map((dm) => `<div class="field"><label for="cf-s-${dm.key}">${esc(dm.full)}</label><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
+        </fieldset>
         <div class="field span-2"><label for="cf-dec">Executive Decision</label><select id="cf-dec" name="decision" class="input">${DECISIONS.map((d) => `<option ${d === v.decision ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
         <p class="muted span-2" style="font-size:13px">นัดสัมภาษณ์จัดการได้จากปุ่ม "จัดนัด" ในตาราง หรือในปฏิทิน</p>
         <div class="error-box span-2" data-err hidden role="alert"></div>
@@ -348,6 +352,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       form.onsubmit = async (e) => {
         e.preventDefault();
         const d = Object.fromEntries(new FormData(form));
+        const scores = cleanScores(Object.fromEntries(DIMENSIONS.map((dm) => [dm.key, d['s_' + dm.key]])));
+        DIMENSIONS.forEach((dm) => delete d['s_' + dm.key]);
         const match = n(d.match);
         const rec = {
           ...(c || {}), ...d,
@@ -356,6 +362,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           match: match == null ? null : Math.max(0, Math.min(100, match)) / 100,
           prescreenDate: d.prescreenDate || null,
           showSalary: form.elements.showSalary.checked,
+          scores,
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
         };
         if (!rec.id || !rec.name) { err.hidden = false; err.textContent = 'ต้องระบุ Candidate ID และชื่อ-นามสกุล'; return; }

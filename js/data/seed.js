@@ -10,6 +10,14 @@ const row = (id, name, position, age, experience, education, company, salaryCurr
 const CIVIL = 'วศ.บ. วิศวกรรมโยธา';
 const SAFETY = 'วท.บ. อาชีวอนามัยและความปลอดภัย';
 
+// Made-up 1–5 dimension scores near each HR Match; D104 is left unscored.
+const DIM_KEYS = ['exp', 'skill', 'result', 'career', 'learn', 'trust', 'tech'];
+const withScores = (c) => {
+  if (c.id === 'D104') return { ...c, scores: {} };
+  const n = Number(c.id.slice(1)), base = Math.round(c.match * 5);
+  return { ...c, scores: Object.fromEntries(DIM_KEYS.map((k, i) => [k, Math.max(1, Math.min(5, base + ((n + i * 2) % 3) - 1))])) };
+};
+
 export const SEED_CANDIDATES = [
   row('D101', 'สมใจ ตัวอย่าง', 'Office Engineer', 28, 5, CIVIL, 'Sample Build Co.', 37000, 42000, 0.81, '2026-08-15', 'เอกสารและ Shop Drawing ดี เหมาะโครงการขนาดกลาง', 'HR'),
   row('D102', 'มาลี ทดลองงาน', 'HR Officer', 30, 7, 'บธ.บ. การจัดการทรัพยากรมนุษย์', 'Demo People Ltd.', 42000, 48000, 0.87, '2026-08-16', 'Recruitment + Workforce Planning และ Dashboard ดี', 'HR'),
@@ -27,7 +35,7 @@ export const SEED_CANDIDATES = [
   row('D114', 'สุริยา สมมติดี', 'Project Engineer', 37, 13, CIVIL, 'Kappa Projects (ตัวอย่าง)', 70000, 80000, 0.95, '2026-08-16', 'ประสบการณ์สูง บริหารหลายโครงการพร้อมกัน และคุมงบได้', 'PJT-PD-3'),
   row('D115', 'พรทิพย์ ลองดู', 'HR Officer', 27, 4, 'ศศ.บ. จิตวิทยาอุตสาหกรรม', 'Lambda HR (ตัวอย่าง)', 31000, 36000, 0.84, '2026-08-14', 'สรรหาหลากหลายสายงานและมีประสบการณ์ ATS', 'PJT-PD-3'),
   row('D116', 'อรุณ ตัวอย่างงาน', 'QS Engineer', 29, 5, CIVIL, 'Mu Measure (ตัวอย่าง)', 39000, 45000, 0.83, '2026-08-13', 'ถอดปริมาณและทำ Cost Comparison ได้รวดเร็ว', 'PJT-PD-4')
-];
+].map(withScores);
 
 export const SEED_USERS = [
   { id: 'admin-hr', username: 'admin-hr', role: 'admin', unit: null, ownerName: '', active: true },

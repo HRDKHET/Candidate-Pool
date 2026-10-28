@@ -30,7 +30,8 @@ const fromRow = (r) => ({
   requestedBy: r.interview_requested_by, requestedAt: r.interview_requested_at,
   confirmedAt: r.interview_confirmed_at, confirmNote: r.interview_confirm_note || '',
   location: r.location, assignedBy: r.assigned_by, updatedAt: r.updated_at,
-  createdAt: r.created_at, holdUntil: r.hold_until
+  createdAt: r.created_at, holdUntil: r.hold_until,
+  scores: r.scores && typeof r.scores === 'object' ? r.scores : {}
 });
 // created_at and hold_until are managed by the database (default + trigger), never sent.
 // Salaries live in candidate_salaries (see supabase/007_salary_visibility.sql).
@@ -47,7 +48,9 @@ const toRow = (c) => ({
   project_name: c.projectName || null, remark: c.remark || null,
   interview_requested_by: c.requestedBy || null, interview_requested_at: c.requestedAt || null,
   interview_confirmed_at: c.confirmedAt || null, interview_confirm_note: c.confirmNote || null,
-  location: c.location || 'HR', assigned_by: c.assignedBy || null
+  location: c.location || 'HR', assigned_by: c.assignedBy || null,
+  // Sent only when the record carries scores, so a workbook without score columns keeps them.
+  ...(c.scores ? { scores: c.scores } : {})
 });
 // show_salary is sent only when the record carries it (the HRS form), so an Excel
 // import never changes who may see a salary.

@@ -1,11 +1,13 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
+import { POOL, UNITS, DECISIONS, DIMENSIONS, cleanScores, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
 import { loadLib } from './cdn.js';
 
 const loadXLSX = () => loadLib('xlsx').catch(() => {
   throw new Error('โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
 });
+
+const scoreHeader = (d) => `คะแนน ${d.label}`;
 
 // Header text in the workbook -> field. Several sheets use different labels for the same thing.
 const HEADERS = {
@@ -16,7 +18,9 @@ const HEADERS = {
   'วันที่ precreen': 'prescreenDate', 'วันที่ prescreen': 'prescreenDate', 'วันที่รับใบสมัคร': 'prescreenDate',
   'hr recommendation': 'recOrNote', 'hr highlight': 'hrNote', 'executive decision': 'decision',
   'วัน/เวลา ที่ต้องการนัดสัมภาษณ์': 'interviewAt', 'ชื่อผู้สัมภาษณ์': 'interviewer',
-  'หน่วยงาน/โครงการ': 'destination', 'ชื่อโครงการ': 'projectName', 'หมายเหตุ': 'remark'
+  'หน่วยงาน/โครงการ': 'destination', 'ชื่อโครงการ': 'projectName', 'หมายเหตุ': 'remark',
+  // One column per comparison dimension, e.g. "คะแนน ผลงาน".
+  ...Object.fromEntries(DIMENSIONS.map((d) => [scoreHeader(d).toLowerCase(), 'score:' + d.key]))
 };
 
 const num = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
@@ -55,6 +59,8 @@ export async function parseWorkbook(file) {
     if (hIdx < 0) continue;
     const fields = rows[hIdx].map((h) => HEADERS[String(h).trim().toLowerCase()] || null);
     const sheetLoc = locationFor(name) || POOL;
+    // Without score columns the sheet leaves existing scores alone.
+    const hasScores = fields.some((f) => f && f.startsWith('score:'));
     let count = 0;
     for (const r of rows.slice(hIdx + 1)) {
       const raw = {};
@@ -94,7 +100,8 @@ export async function parseWorkbook(file) {
         interviewMode: excelDate(raw.interviewAt, true) ? 'onsite' : null,
         projectName: String(raw.projectName ?? '').trim(),
         remark: String(raw.remark ?? '').trim(),
-        location, assignedBy: location === POOL ? null : 'HR'
+        location, assignedBy: location === POOL ? null : 'HR',
+        ...(hasScores ? { scores: cleanScores(Object.fromEntries(DIMENSIONS.map((d) => [d.key, raw['score:' + d.key]]))) } : {})
       };
       if (seen.has(id)) { result.duplicates.push(`${id} (${seen.get(id)} และ ${name})`); continue; }
       seen.set(id, name);
@@ -119,7 +126,8 @@ export async function exportWorkbook(candidates) {
     'รูปแบบ': c.interviewMode === 'online' ? 'Online' : c.interviewMode === 'onsite' ? 'Onsite' : '',
     'สถานที่ / ลิงก์': c.interviewMode === 'online' ? c.meetingLink : c.interviewLocation,
     'ชื่อผู้สัมภาษณ์': interviewerText(c.interviewers), 'หน่วยงาน/โครงการ': locLabel(c.location),
-    'ชื่อโครงการ': c.projectName, 'หมายเหตุ': c.remark
+    'ชื่อโครงการ': c.projectName, 'หมายเหตุ': c.remark,
+    ...Object.fromEntries(DIMENSIONS.map((d) => [scoreHeader(d), (c.scores || {})[d.key] ?? '']))
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Candidates');

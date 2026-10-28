@@ -287,8 +287,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     }
     if ((el = t('[data-refresh]'))) { anim.press(el); return reload({ animate: true }); }
     // Salary axes appear only when at least one candidate's salary is shown to this unit.
-    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos, salaries: visibleForCompare().some(showSalary) });
-    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare], { salaries: visibleForCompare().some(showSalary) });
+    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos });
+    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare]);
     if ((el = t('[data-view]'))) { st.view = el.dataset.view; st.q = ''; st.animate = true; return render(); }
     if ((el = t('[data-filter]'))) { st.filter = el.dataset.filter; st.animate = true; return render(); }
     if ((el = t('[data-cal]'))) {
@@ -346,7 +346,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       actions,
       showSalary: showSalary(c),
       onAction: (id) => {
-        if (id === 'compare') return openCompare(visibleForCompare(), [c.id], { salaries: visibleForCompare().some(showSalary) });
+        if (id === 'compare') return openCompare(visibleForCompare(), [c.id]);
         if (id === 'pick') return pickCandidate(c);
         if (id === 'return') return returnCandidate(c);
         if (id === 'detail') return detail(c);
