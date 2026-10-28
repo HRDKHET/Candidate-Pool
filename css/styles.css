@@ -350,7 +350,9 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .compare { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .compare-pick { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .compare-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
-.compare-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); cursor: pointer; min-height: 44px; }
+/* flex: none — inside the height-capped list, items must scroll, never squash. */
+.compare-item { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); cursor: pointer; min-height: 44px; line-height: 1.45; }
+.compare-item .new-badge { flex: none; }
 .compare-item.on { background: #F1EDFF; }
 .compare-item input { width: 18px; height: 18px; accent-color: var(--violet); flex: none; }
 .compare-item .swatch { width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--line-strong); flex: none; }
