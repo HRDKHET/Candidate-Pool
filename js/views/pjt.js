@@ -2,7 +2,7 @@
 // candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -68,13 +68,9 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
   function holdBlock(c) {
     const h = holdLeft(c);
     if (!h) return '';
-    return `<div class="hold${h.urgent ? ' urgent' : ''}" data-hold-box>
-      <div class="hold-top">
-        <span class="hold-label"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>เด้งกลับ Candidate Pool ใน</span>
-        <span class="hold-clock"><strong class="mono" data-hold="${esc(c.holdUntil)}" aria-label="เหลือ ${esc(h.text)}">${esc(h.clock)}</strong> ชม.</span>
-      </div>
-      <div class="hold-track" aria-hidden="true"><div data-hold-bar style="width:${(h.share * 100).toFixed(2)}%"></div></div>
-      <span class="hold-note">ครบกำหนด ${esc(fmtDateTime(c.holdUntil))} · กด นัดสัมภาษณ์ เพื่อหยุดเวลา</span>
+    return `<div class="hold${h.urgent ? ' urgent' : ''}" data-hold-box title="เด้งกลับ Candidate Pool ${esc(fmtDateTime(c.holdUntil))} · กด นัดสัมภาษณ์ เพื่อหยุดเวลา">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
+      <strong class="mono" data-hold="${esc(c.holdUntil)}" aria-label="เหลือเวลาก่อนเด้งกลับ Candidate Pool ${esc(h.text)}">${esc(h.clock)}</strong>
     </div>`;
   }
   // HRS decides per candidate; the server sends no salary for the others.
@@ -84,7 +80,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     const av = avatarFor(c.id);
     const rec = recommendationFor(c);
     const m = c.match ?? 0;
-    const bar = m >= 0.9 ? '#5B3DF5' : m >= 0.8 ? '#FF7A3D' : '#8C8A83';
+    const mc = matchColor(c.match);
     const recStyle = rec === 'Strongly Recommend' ? 'background:#111;color:#fff' : rec === 'Recommend' ? 'background:#E4DDFF;color:#2A1A8C' : 'background:#ECEBE7;color:#3D3C38';
     return `
     <article class="card" data-card="${esc(c.id)}">
@@ -96,10 +92,10 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
         </div>
-        <div class="match"><strong>${pct(c.match)}</strong><span>HR Match</span></div>
+        <div class="match"><strong style="color:${mc.text}">${pct(c.match)}</strong><span>HR Match</span></div>
       </div>
       ${holdBlock(c)}
-      <div class="bar" aria-hidden="true"><div data-grow style="width:${Math.round(m * 100)}%;background:${bar}"></div></div>
+      <div class="bar" aria-hidden="true"><div data-grow style="width:${Math.round(m * 100)}%;background:${mc.fill}"></div></div>
       <dl class="facts">
         <div><dt>บริษัทล่าสุด</dt><dd>${esc(c.company || '—')}</dd></div>
         <div><dt>การศึกษา</dt><dd>${esc(c.education || '—')}</dd></div>
@@ -138,7 +134,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary(c) ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
         </div>
-        <div class="match"><strong style="font-size:26px">${pct(c.match)}</strong><span>HR Match</span></div>
+        <div class="match"><strong style="font-size:26px;color:${matchColor(c.match).text}">${pct(c.match)}</strong><span>HR Match</span></div>
       </div>
       <p class="note">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -375,10 +371,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     root.querySelectorAll('[data-hold]').forEach((el) => {
       const h = holdLeft({ holdUntil: el.dataset.hold, decision: 'รอพิจารณา' });
       el.textContent = h.clock;
-      el.setAttribute('aria-label', 'เหลือ ' + h.text);
-      const box = el.closest('[data-hold-box]');
-      box.classList.toggle('urgent', h.urgent);
-      box.querySelector('[data-hold-bar]').style.width = (h.share * 100).toFixed(2) + '%';
+      el.setAttribute('aria-label', 'เหลือเวลาก่อนเด้งกลับ Candidate Pool ' + h.text);
+      el.closest('[data-hold-box]').classList.toggle('urgent', h.urgent);
       if (h.ms <= 0 && !reloadedFor.has(el.dataset.hold)) { reloadedFor.add(el.dataset.hold); expired = true; }
     });
     if (expired) reload();

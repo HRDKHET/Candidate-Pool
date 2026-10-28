@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -157,7 +157,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <td class="mono" style="font-weight:600">${esc(c.id)}${isNew(c) ? `<span class="new-cell">${NEW_BADGE}</span>` : ''}</td>
               <td><button type="button" class="name-btn" style="font-weight:600" data-profile="${esc(c.id)}">${esc(c.name)}</button></td>
               <td>${esc(c.position || '—')}</td>
-              <td style="font-weight:700">${pct(c.match)}</td>
+              <td style="font-weight:700;color:${matchColor(c.match).text}">${pct(c.match)}</td>
               <td><button type="button" class="switch" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${c.showSalary ? 'แสดง' : 'ไม่แสดง'}</button></td>
               <td><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
                 <select id="dec-${esc(c.id)}" class="table-select" data-setdec="${esc(c.id)}" style="background:${ds.bg};color:${ds.fg};border-color:transparent">

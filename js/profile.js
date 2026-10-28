@@ -2,7 +2,7 @@
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
   esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor,
-  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel
+  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor
 } from './ui.js';
 
 const fact = (label, value, wide = false) =>
@@ -67,9 +67,9 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
     <section class="profile-match" aria-label="HR Match">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
         <span style="font-weight:600">HR Match</span>
-        <strong style="font-size:32px;line-height:1">${pct(c.match)}</strong>
+        <strong style="font-size:32px;line-height:1;color:${matchColor(c.match).text}">${pct(c.match)}</strong>
       </div>
-      <div class="bar" aria-hidden="true"><div style="width:${Math.round(m * 100)}%;background:${m >= 0.9 ? '#5B3DF5' : m >= 0.8 ? '#FF7A3D' : '#8C8A83'}"></div></div>
+      <div class="bar" aria-hidden="true"><div style="width:${Math.round(m * 100)}%;background:${matchColor(c.match).fill}"></div></div>
     </section>
 
     <section class="profile-section" aria-labelledby="pf-info">
