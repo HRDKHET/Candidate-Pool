@@ -351,7 +351,9 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .compare-pick { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .compare-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
 /* Dimension hint: "i" button + one floating speech-bubble tip (see initTips in ui.js). */
-.tip-i { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #E4DDFF; color: #2A1A8C; font: italic 700 12px/1 Georgia, serif; cursor: help; vertical-align: middle; }
+.tip-i { flex: none; position: relative; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: #E4DDFF; color: #2A1A8C; font: italic 700 9px/1 Georgia, serif; cursor: help; vertical-align: middle; }
+/* Keeps a finger-sized tap area around the small dot. */
+.tip-i::before { content: ''; position: absolute; inset: -8px; }
 .tip-i:hover, .tip-i:focus-visible { background: var(--violet); color: #fff; }
 .radar-label[data-tip] { cursor: help; outline: none; }
 .radar-label[data-tip]:hover, .radar-label[data-tip]:focus { fill: var(--violet); text-decoration: underline; }
