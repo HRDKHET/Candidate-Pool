@@ -2,7 +2,7 @@
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
   esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor, recLabel,
-  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, DIMENSIONS
+  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, DIMENSIONS, dimInfo
 } from './ui.js';
 
 const fact = (label, value, wide = false) =>
@@ -24,7 +24,7 @@ function scoreSection(c) {
   return `
     <section class="profile-section" aria-labelledby="pf-sc">
       <h3 id="pf-sc">คะแนนรายมิติ <span class="muted" style="font-size:13px;font-weight:500">จาก ${esc(HRS)} · เต็ม 5</span></h3>
-      <ul class="score-list">${DIMENSIONS.map((d) => `<li><span>${esc(d.full)}</span>${s[d.key]
+      <ul class="score-list">${DIMENSIONS.map((d) => `<li><span style="display:inline-flex;align-items:center;gap:6px">${esc(d.full)} ${dimInfo(d)}</span>${s[d.key]
         ? `<span class="score-dots" role="img" aria-label="${s[d.key]} จาก 5">${[1, 2, 3, 4, 5].map((x) => `<i class="${x <= s[d.key] ? 'on' : ''}"></i>`).join('')}</span>`
         : '<span class="muted">—</span>'}</li>`).join('')}</ul>
     </section>`;

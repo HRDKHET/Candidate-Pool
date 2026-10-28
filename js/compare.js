@@ -1,5 +1,5 @@
 // Side-by-side candidate comparison on a radar (spider) chart, up to 4 at once.
-import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS } from './ui.js';
+import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS, dimTip, dimInfo } from './ui.js';
 import * as anim from './anim.js';
 import { positionsOf } from './filters.js';
 
@@ -23,7 +23,7 @@ function radarSVG(picked) {
   const labels = dims.map((d, i) => {
     const [x, y] = pt(i, 6.1);
     const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
-    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label">${esc(d.label)}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label" ${dimTip(d)}>${esc(d.label)}</text>`;
   }).join('');
   const shapes = picked.map((c, n) => {
     const col = COLORS[n];
@@ -109,7 +109,7 @@ export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
             <tbody>${dims.map((d) => {
               const scores = sel.map((c) => d.score(c));
               const best = Math.max(...scores.filter((v) => v != null));
-              return `<tr><th scope="row">${esc(d.label)}${d.full !== d.label ? `<span class="muted" style="display:block;font-size:12px;font-weight:500">${esc(d.full)}</span>` : ''}</th>${sel.map((c, n) => {
+              return `<tr><th scope="row">${esc(d.label)} ${dimInfo(d)}${d.full !== d.label ? `<span class="muted" style="display:block;font-size:12px;font-weight:500">${esc(d.full)}</span>` : ''}</th>${sel.map((c, n) => {
                 const v = scores[n];
                 return `<td${v != null && v === best && sel.length > 1 ? ' class="best"' : ''}><strong>${v == null ? '—' : v}</strong></td>`;
               }).join('')}</tr>`;

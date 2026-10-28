@@ -350,6 +350,17 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .compare { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .compare-pick { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .compare-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+/* Dimension hint: "i" button + one floating speech-bubble tip (see initTips in ui.js). */
+.tip-i { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #E4DDFF; color: #2A1A8C; font: italic 700 12px/1 Georgia, serif; cursor: help; vertical-align: middle; }
+.tip-i:hover, .tip-i:focus-visible { background: var(--violet); color: #fff; }
+.radar-label[data-tip] { cursor: help; outline: none; }
+.radar-label[data-tip]:hover, .radar-label[data-tip]:focus { fill: var(--violet); text-decoration: underline; }
+.tip { position: fixed; z-index: 70; max-width: min(320px, calc(100vw - 16px)); padding: 12px 14px; border-radius: 14px; background: #111; color: #fff; font-size: 13px; line-height: 1.55; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 10px 28px rgba(0,0,0,.28); pointer-events: none; }
+.tip[hidden] { display: none; }
+.tip strong { font-size: 14px; }
+.tip b { color: #C8F169; font-weight: 700; margin-right: 4px; }
+.tip::after { content: ''; position: absolute; left: var(--arrow, 50%); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #111; transform: rotate(45deg); }
+.tip.below::after { bottom: auto; top: -6px; }
 /* flex: none — inside the height-capped list, items must scroll, never squash. */
 .compare-item { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); cursor: pointer; min-height: 44px; line-height: 1.45; }
 .compare-item .new-badge { flex: none; }

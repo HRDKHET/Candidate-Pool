@@ -1,7 +1,7 @@
 // HRS back office: overview + interview requests, full candidate pool control,
 // interview calendar, users & permissions.
 import {
-  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, cleanScores, MODE_LABEL,
+  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
   confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor
 } from '../ui.js';
@@ -338,7 +338,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="3">${esc(v.hrNote || '')}</textarea></div>
         <fieldset class="span-2 score-set">
           <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้ในกราฟเปรียบเทียบ</legend>
-          ${DIMENSIONS.map((dm) => `<div class="field"><label for="cf-s-${dm.key}">${esc(dm.full)}</label><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
+          ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
         </fieldset>
         <div class="field span-2"><label for="cf-dec">Executive Decision</label><select id="cf-dec" name="decision" class="input">${DECISIONS.map((d) => `<option ${d === v.decision ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
         <p class="muted span-2" style="font-size:13px">นัดสัมภาษณ์จัดการได้จากปุ่ม "จัดนัด" ในตาราง หรือในปฏิทิน</p>

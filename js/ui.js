@@ -47,15 +47,81 @@ export const REC_LABEL = {
 };
 export const recLabel = (r) => REC_LABEL[r] || r || '';
 // Comparison dimensions. HRS scores each 1–5; stored as candidates.scores (supabase/009_*.sql).
+// source = what HRS reads in the resume; aim = what the score tells you. Shown as a hover tip.
 export const DIMENSIONS = [
-  { key: 'exp', label: 'ประสบการณ์', full: 'ประสบการณ์' },
-  { key: 'skill', label: 'ความรู้และทักษะ', full: 'ความรู้และทักษะ' },
-  { key: 'result', label: 'ผลงาน', full: 'ผลงานและผลลัพธ์' },
-  { key: 'career', label: 'เส้นทางอาชีพ', full: 'เส้นทางอาชีพและการเปลี่ยนงาน' },
-  { key: 'learn', label: 'การเรียนรู้', full: 'การศึกษาและการพัฒนาตนเอง' },
-  { key: 'trust', label: 'ความน่าเชื่อถือ', full: 'ความน่าเชื่อถือของข้อมูลใน Resume' },
-  { key: 'tech', label: 'Tech & AI', full: 'การนำเทคโนโลยีและ AI มาใช้ในการทำงาน' }
+  { key: 'exp', label: 'ประสบการณ์', full: 'ประสบการณ์',
+    source: 'บริษัท ประเภทธุรกิจ ตำแหน่ง ระยะเวลา ขนาดงาน และขอบเขตความรับผิดชอบ',
+    aim: 'เคยทำอะไร ในบริบทใด และรับผิดชอบระดับไหน' },
+  { key: 'skill', label: 'ความรู้และทักษะ', full: 'ความรู้และทักษะ',
+    source: 'ความรู้เฉพาะทาง โปรแกรม เครื่องมือ ระบบ ภาษา และตัวอย่างการใช้งาน',
+    aim: 'มีทักษะอะไร และมีตัวอย่างใช้งานจริงรองรับแค่ไหน' },
+  { key: 'result', label: 'ผลงาน', full: 'ผลงานและผลลัพธ์',
+    source: 'โครงการ รางวัล บทบาทที่ลงมือทำ และผลลัพธ์ที่เป็นตัวเลขหรือคุณภาพ',
+    aim: 'แยกหน้าที่ออกจากผลลัพธ์ และดูว่าเป็นผลงานของตนเองหรือของทีม' },
+  { key: 'career', label: 'เส้นทางอาชีพ', full: 'เส้นทางอาชีพและการเปลี่ยนงาน',
+    source: 'ลำดับงาน วันเริ่ม–สิ้นสุด การเลื่อนตำแหน่ง และเหตุผลย้ายงาน',
+    aim: 'ทิศทางและความต่อเนื่องของอาชีพ และช่วงที่ต้องถามเพิ่ม' },
+  { key: 'learn', label: 'การเรียนรู้', full: 'การศึกษาและการพัฒนาตนเอง',
+    source: 'การศึกษา ใบอนุญาต ใบรับรอง หลักสูตรอบรม และการนำความรู้ไปใช้',
+    aim: 'พื้นฐานและการเรียนรู้ต่อเนื่อง ไม่ตัดสินจากชื่อสถาบันหรือจำนวนใบประกาศ' },
+  { key: 'trust', label: 'ความน่าเชื่อถือ', full: 'ความน่าเชื่อถือของข้อมูลใน Resume',
+    source: 'ความสอดคล้องของวันที่ ตำแหน่ง ตัวเลข ผลงาน และหลักฐานใน Resume',
+    aim: 'ข้อมูลครบ ชัด สอดคล้องแค่ไหน และข้อใดต้องยืนยัน ไม่ได้ตัดสินความซื่อสัตย์' },
+  { key: 'tech', label: 'Tech & AI', full: 'การนำเทคโนโลยีและ AI มาใช้ในการทำงาน',
+    source: 'เครื่องมือดิจิทัล ระบบอัตโนมัติ หรือ AI ที่ใช้กับงานจริง พร้อมบทบาทและผลลัพธ์',
+    aim: 'นำเทคโนโลยีไปปรับปรุงงานได้จริงแค่ไหน มากกว่าแค่ใช้เครื่องมือเป็น' }
 ];
+// Attributes for an element that shows this dimension's tip on hover, focus or tap.
+export const dimTip = (d) => `data-tip="${esc(d.key)}" tabindex="0"`;
+// A small "i" button placed after a dimension name.
+export const dimInfo = (d) => `<span class="tip-i" role="button" aria-label="คำอธิบาย ${esc(d.full)}" ${dimTip(d)}>i</span>`;
+
+// One floating tip for the whole app: works on HTML and SVG elements and is never
+// clipped by scrolling containers. Mouse hover, keyboard focus and tap all open it.
+let tipEl = null, tipFor = null;
+function tipHTML(key) {
+  const d = DIMENSIONS.find((x) => x.key === key);
+  if (!d) return '';
+  return `<strong>${esc(d.full)}</strong><span><b>ดูจาก</b> ${esc(d.source)}</span><span><b>เพื่อเห็น</b> ${esc(d.aim)}</span>`;
+}
+function showTip(target) {
+  const html = tipHTML(target.getAttribute('data-tip'));
+  if (!html) return;
+  if (!tipEl) {
+    tipEl = document.createElement('div');
+    tipEl.className = 'tip';
+    tipEl.setAttribute('role', 'tooltip');
+    tipEl.id = 'app-tip';
+    document.body.appendChild(tipEl);
+  }
+  tipFor = target;
+  tipEl.innerHTML = html;
+  tipEl.hidden = false;
+  target.setAttribute('aria-describedby', 'app-tip');
+  const r = target.getBoundingClientRect(), t = tipEl.getBoundingClientRect();
+  const left = Math.max(8, Math.min(innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2));
+  const above = r.top - t.height - 10;
+  const top = above >= 8 ? above : r.bottom + 10;
+  tipEl.style.left = `${left}px`;
+  tipEl.style.top = `${top}px`;
+  tipEl.classList.toggle('below', above < 8);
+  tipEl.style.setProperty('--arrow', `${Math.max(14, Math.min(t.width - 14, r.left + r.width / 2 - left))}px`);
+}
+function hideTip() {
+  if (tipEl) tipEl.hidden = true;
+  if (tipFor) tipFor.removeAttribute('aria-describedby');
+  tipFor = null;
+}
+export function initTips() {
+  const at = (e) => e.target instanceof Element && e.target.closest('[data-tip]');
+  document.addEventListener('mouseover', (e) => { const t = at(e); if (t && t !== tipFor) showTip(t); else if (!t && tipFor) hideTip(); });
+  document.addEventListener('focusin', (e) => { const t = at(e); if (t) showTip(t); });
+  document.addEventListener('focusout', hideTip);
+  document.addEventListener('click', (e) => { const t = at(e); if (t) showTip(t); else hideTip(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip(); });
+  addEventListener('scroll', hideTip, true);
+  addEventListener('resize', hideTip);
+}
 // Keeps only known keys with a whole score 1–5.
 export function cleanScores(s) {
   const out = {};
