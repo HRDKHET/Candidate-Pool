@@ -145,37 +145,39 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       <div class="search"><label for="adm-search" class="sr-only">ค้นหาผู้สมัคร</label>${ICONS.search}<input id="adm-search" class="input" type="search" placeholder="ค้นหาชื่อ, ID หรือตำแหน่ง" value="${esc(st.q)}"></div>
     </div>
     ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af', dirty: !!st.q || st.loc !== 'all' })}
-    <div class="table-wrap">
-      <table style="min-width:1200px">
-        <thead><tr><th scope="col">ID</th><th scope="col">ชื่อ-นามสกุล</th><th scope="col">ตำแหน่ง</th><th scope="col">HR Match</th><th scope="col">แผนกเห็นเงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ส่งเข้า Pool / ดึงกลับ</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
+    <div class="table-wrap pool-wrap">
+      <table class="pool-table">
+        <thead><tr><th scope="col">ผู้สมัคร</th><th scope="col">HR Match</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
         <tbody>
-          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="10">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
+          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="8">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
+            const hold = holdLeft(c);
             return `<tr data-row>
-              <td class="mono" style="font-weight:600">${esc(c.id)}${isNew(c) ? `<span class="new-cell">${NEW_BADGE}</span>` : ''}</td>
-              <td><button type="button" class="name-btn" style="font-weight:600" data-profile="${esc(c.id)}">${esc(c.name)}</button></td>
-              <td>${esc(c.position || '—')}</td>
-              <td style="font-weight:700;color:${matchColor(c.match).text}">${pct(c.match)}</td>
-              <td><button type="button" class="switch" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${c.showSalary ? 'แสดง' : 'ไม่แสดง'}</button></td>
-              <td><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
+              <td class="pool-who">
+                <button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button>
+                <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''}</span>
+              </td>
+              <td data-label="HR Match" style="font-weight:700;color:${matchColor(c.match).text}">${pct(c.match)}</td>
+              <td data-label="แผนกเห็นเงินเดือน"><button type="button" class="switch switch-sm" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" title="${c.showSalary ? 'แผนกเห็นเงินเดือน' : 'แผนกไม่เห็นเงินเดือน'}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="switch-text">${c.showSalary ? 'แสดง' : 'ซ่อน'}</span></button></td>
+              <td data-label="Executive Decision"><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
                 <select id="dec-${esc(c.id)}" class="table-select" data-setdec="${esc(c.id)}" style="background:${ds.bg};color:${ds.fg};border-color:transparent">
                   ${DECISIONS.map((d) => `<option value="${esc(d)}" ${d === c.decision ? 'selected' : ''}>${esc(d)}</option>`).join('')}
                 </select></td>
-              <td>${ist
+              <td data-label="นัดสัมภาษณ์">${ist
                 ? `<button type="button" class="pill" data-detail="${esc(c.id)}" style="border:0;cursor:pointer;background:${ist.bg};color:${ist.fg}">${esc(ist.label)}</button>`
                 : `<button type="button" class="btn btn-sm" data-interview="${esc(c.id)}">${ICONS.calendar} จัดนัด</button>`}</td>
-              <td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span>
-                ${holdLeft(c) ? `<span class="hold-mini${holdLeft(c).urgent ? ' urgent' : ''}">เด้งกลับใน ${esc(holdLeft(c).text)}</span>` : ''}</td>
-              <td><label class="sr-only" for="mv-${esc(c.id)}">ย้าย ${esc(c.id)}</label>
+              <td data-label="อยู่ที่"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span>
+                ${hold ? `<span class="hold-mini${hold.urgent ? ' urgent' : ''}">เด้งกลับใน ${esc(hold.text)}</span>` : ''}</td>
+              <td data-label="ย้าย"><label class="sr-only" for="mv-${esc(c.id)}">ย้าย ${esc(c.id)}</label>
                 <select id="mv-${esc(c.id)}" class="table-select" data-move="${esc(c.id)}">
-                  <option value="">เลือก…</option>
+                  <option value="">ย้ายไป…</option>
                   ${LOCATIONS.filter((l) => l !== c.location).map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : 'ส่งเข้า Pool ' + esc(l)}</option>`).join('')}
                 </select></td>
-              <td><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
+              <td class="pool-edit"><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
             </tr>`;
-          }).join('')).join('') : '<tr><td colspan="10" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
+          }).join('')).join('') : '<tr><td colspan="8" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
         </tbody>
       </table>
     </div>`;

@@ -229,6 +229,38 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .switch-track { width: 48px; height: 28px; border-radius: 999px; background: #8C8A83; display: flex; align-items: center; padding: 3px; transition: background .2s; }
 .switch-knob { width: 22px; height: 22px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .switch[aria-checked="true"] .switch-track { background: var(--violet); justify-content: flex-end; }
+.switch-sm { gap: 8px; font-size: 13px; }
+.switch-sm .switch-track { width: 40px; height: 24px; }
+.switch-sm .switch-knob { width: 18px; height: 18px; }
+
+/* HRS candidate table: fits its column without sideways scrolling.
+   Wide: compact table. Narrow: each candidate becomes a stacked card. */
+.pool-wrap { overflow-x: visible; container-type: inline-size; }
+.pool-table th, .pool-table td { padding: 10px 8px; }
+.pool-table th:first-child, .pool-table td:first-child { padding-left: 14px; }
+.pool-table thead th { white-space: nowrap; font-size: 13px; }
+.pool-table .table-select { max-width: 100%; padding: 0 6px 0 10px; }
+.pool-table .btn-sm { white-space: nowrap; }
+.pool-table [data-move] { width: 124px; }
+.pool-table .switch-text { display: none; }
+.pool-who { min-width: 150px; }
+.pool-who .name-btn { font-weight: 700; font-size: 15px; }
+.pool-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 2px; font-size: 13px; color: var(--muted); }
+.pool-sub .mono { font-weight: 600; color: var(--ink); }
+@container (max-width: 920px) {
+  .pool-table thead { display: none; }
+  .pool-table, .pool-table tbody { display: block; }
+  .pool-table tr[data-row] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 12px 16px; padding: 14px; border-top: 1px solid #EFEDE7; }
+  .pool-table .group-row { display: block; }
+  .pool-table .group-row th { display: block; }
+  .pool-table td { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 !important; border: 0; min-width: 0; }
+  .pool-table td[data-label]::before { content: attr(data-label); font-size: 12px; font-weight: 600; color: var(--muted-2); }
+  .pool-table .pool-who { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: space-between; }
+  .pool-table .pool-who .pool-sub { flex-basis: 100%; }
+  .pool-table .pool-edit { justify-content: flex-end; }
+  .pool-table .table-select { width: 100%; }
+  .pool-table .switch-text { display: inline; }
+}
 
 /* ---------- modal & toast ---------- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(17,17,17,.5); display: flex; align-items: flex-start; justify-content: center; padding: 64px 16px; overflow-y: auto; z-index: 50; }
