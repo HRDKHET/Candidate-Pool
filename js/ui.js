@@ -142,13 +142,13 @@ export function toLocalInput(iso) {
 export function baht(n) {
   return n == null || n === '' ? '—' : Number(n).toLocaleString('th-TH') + ' ฿';
 }
-// HR Match scale, high to low: green ≥ 90, yellow ≥ 80, orange ≥ 70, red below.
+// HR Match scale, high to low: green ≥ 80, yellow ≥ 70, orange ≥ 50, red below.
 // text = readable on white, fill = bar colour.
 export function matchColor(m) {
   if (m == null) return { text: '#5F5E58', fill: '#CFCDC6' };
-  if (m >= 0.9) return { text: '#2B8A3E', fill: '#40C057' };
-  if (m >= 0.8) return { text: '#946200', fill: '#FAB005' };
-  if (m >= 0.7) return { text: '#D9480F', fill: '#FD7E14' };
+  if (m >= 0.8) return { text: '#2B8A3E', fill: '#40C057' };
+  if (m >= 0.7) return { text: '#946200', fill: '#FAB005' };
+  if (m >= 0.5) return { text: '#D9480F', fill: '#FD7E14' };
   return { text: '#C92A2A', fill: '#E03131' };
 }
 export function pct(m) {
