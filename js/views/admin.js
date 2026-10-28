@@ -12,6 +12,7 @@ import { openInterviewForm, showInterviewDetail } from '../interview.js';
 import { calendarHTML, monthStart, shiftMonth } from '../calendar.js';
 import { openCompare } from '../compare.js';
 import { bellHTML, openNotifications, watchNotifications } from '../notify.js';
+import { openProfile } from '../profile.js';
 
 const TABS = [
   { key: 'overview', label: 'ภาพรวม', dot: '#C8F169', shape: '999px' },
@@ -33,8 +34,8 @@ const PERMS = [
   ['เลือกผู้สมัครเข้า Pool', 'ส่งเข้า Pool ใดก็ได้', YES, 'เฉพาะ Pool ตนเอง (พิจารณาภายใน 72 ชม.)', PART],
   ['คืนผู้สมัครกลับ Candidate Pool', 'ทุก Pool', YES, 'เฉพาะ Pool ตนเอง', PART],
   ['ย้ายผู้สมัครข้าม Pool แผนก', 'ได้', YES, 'ไม่ได้', NO],
-  ['Executive Decision', 'ทุกรายการ', YES, 'เฉพาะ Pool ตนเอง', PART],
-  ['นัดสัมภาษณ์', 'จัดนัด / ยืนยันนัด + ส่งลิงก์', YES, 'ส่งคำขอนัด', PART],
+  ['Executive Decision (ทุกสถานะ)', 'ทุกรายการ', YES, 'ไม่ได้ (มีแค่ นัดสัมภาษณ์ / ส่งคืน)', NO],
+  ['นัดสัมภาษณ์', 'จัดนัด / ยืนยันนัด + ส่งลิงก์', YES, 'ส่งคำขอนัด (เฉพาะ Pool ตนเอง)', PART],
   ['ปฏิทินสัมภาษณ์', 'ทุกแผนก', YES, 'เฉพาะแผนกตนเอง', PART],
   ['เปรียบเทียบผู้สมัคร', 'ทุก Pool', YES, 'Candidate Pool + Pool ตนเอง', PART],
   ['ดูเงินเดือนผู้สมัคร', 'ได้เสมอ', YES, `เฉพาะรายที่ ${HRS} เปิดให้เห็น (เริ่มต้น: ไม่เห็น)`, PART],
@@ -143,7 +144,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       </div>
       <div class="search"><label for="adm-search" class="sr-only">ค้นหาผู้สมัคร</label>${ICONS.search}<input id="adm-search" class="input" type="search" placeholder="ค้นหาชื่อ, ID หรือตำแหน่ง" value="${esc(st.q)}"></div>
     </div>
-    ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af' })}
+    ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af', dirty: !!st.q || st.loc !== 'all' })}
     <div class="table-wrap">
       <table style="min-width:1200px">
         <thead><tr><th scope="col">ID</th><th scope="col">ชื่อ-นามสกุล</th><th scope="col">ตำแหน่ง</th><th scope="col">HR Match</th><th scope="col">แผนกเห็นเงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ส่งเข้า Pool / ดึงกลับ</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
@@ -154,7 +155,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
             const ist = INTERVIEW_STATUS[c.interviewStatus];
             return `<tr data-row>
               <td class="mono" style="font-weight:600">${esc(c.id)}${isNew(c) ? `<span class="new-cell">${NEW_BADGE}</span>` : ''}</td>
-              <td><strong style="font-weight:600">${esc(c.name)}</strong></td>
+              <td><button type="button" class="name-btn" style="font-weight:600" data-profile="${esc(c.id)}">${esc(c.name)}</button></td>
               <td>${esc(c.position || '—')}</td>
               <td style="font-weight:700">${pct(c.match)}</td>
               <td><button type="button" class="switch" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${c.showSalary ? 'แสดง' : 'ไม่แสดง'}</button></td>
@@ -575,6 +576,17 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if ((el = t('[data-interview]'))) return interviewForm(byId(el.dataset.interview));
     if ((el = t('[data-compare-open]'))) return openCompare(st.list, [], { pos: st.f.pos });
     if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; return render(); }
+    if ((el = t('[data-f-clear]'))) { st.f = newFilterState(); st.q = ''; st.loc = 'all'; render(); toast('ล้างตัวกรองแล้ว'); return; }
+    if ((el = t('[data-profile]'))) {
+      const c = byId(el.dataset.profile);
+      return openProfile(c, {
+        actions: [
+          { id: 'edit', label: 'แก้ไขข้อมูล' },
+          { id: 'interview', label: c.interviewStatus === 'requested' ? 'ยืนยันนัด' : c.interviewStatus ? 'ดูนัด' : 'จัดนัด', primary: true }
+        ],
+        onAction: (id) => (id === 'edit' ? candidateForm(c) : c.interviewStatus ? detail(c) : interviewForm(c))
+      });
+    }
     if ((el = t('[data-add]'))) return candidateForm(null);
     if ((el = t('[data-edit]'))) return candidateForm(byId(el.dataset.edit));
     if ((el = t('[data-export]'))) {

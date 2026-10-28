@@ -1,5 +1,5 @@
-// แผนก workspace: own pool (decide, request interviews, return), the Candidate Pool (pick),
-// interview calendar, candidate comparison and notifications.
+// แผนก workspace: own pool (request interviews, return), the Candidate Pool (pick),
+// candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
   fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome
@@ -11,9 +11,12 @@ import { openInterviewForm, showInterviewDetail } from '../interview.js';
 import { calendarHTML, monthStart, shiftMonth } from '../calendar.js';
 import { openCompare } from '../compare.js';
 import { bellHTML, openNotifications, watchNotifications } from '../notify.js';
+import { openProfile } from '../profile.js';
 
-const DECIDE = ['เรียกสัมภาษณ์', 'สำรอง', 'ไม่พิจารณา'];
-const FILTERS = ['all', 'รอพิจารณา', 'เรียกสัมภาษณ์', 'นัดสัมภาษณ์แล้ว', 'สำรอง', 'ไม่พิจารณา'];
+// Units only request interviews or send candidates back; สำรอง / ไม่พิจารณา set by
+// HRS still get a chip, but only when some candidate has them.
+const FILTERS = ['all', 'รอพิจารณา', 'เรียกสัมภาษณ์', 'นัดสัมภาษณ์แล้ว'];
+const HRS_ONLY_FILTERS = ['สำรอง', 'ไม่พิจารณา'];
 
 export function mountPjt(root, { store, session, signOut, onCleanup }) {
   const unit = session.unit;
@@ -35,7 +38,6 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
   const mine = () => st.list.filter((c) => c.location === unit);
   const pool = () => st.list.filter((c) => c.location === POOL);
   const byId = (id) => st.list.find((c) => c.id === id);
-  const calledLike = (d) => d === 'เรียกสัมภาษณ์' || d === 'นัดสัมภาษณ์แล้ว';
 
   function interviewBlock(c) {
     if (c.interviewStatus === 'requested') {
@@ -58,9 +60,6 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <button type="button" class="btn btn-sm" data-detail="${esc(c.id)}">รายละเอียด</button>
       </div>`;
     }
-    if (c.decision === 'เรียกสัมภาษณ์') {
-      return `<button type="button" class="btn btn-dark" data-request="${esc(c.id)}"><span style="color:#C8F169;display:flex">${ICONS.calendar}</span>ขอนัดสัมภาษณ์</button>`;
-    }
     return '';
   }
 
@@ -75,7 +74,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span class="hold-clock"><strong class="mono" data-hold="${esc(c.holdUntil)}" aria-label="เหลือ ${esc(h.text)}">${esc(h.clock)}</strong> ชม.</span>
       </div>
       <div class="hold-track" aria-hidden="true"><div data-hold-bar style="width:${(h.share * 100).toFixed(2)}%"></div></div>
-      <span class="hold-note">ครบกำหนด ${esc(fmtDateTime(c.holdUntil))} · เลือก เรียกสัมภาษณ์ / สำรอง / ไม่พิจารณา เพื่อหยุดเวลา</span>
+      <span class="hold-note">ครบกำหนด ${esc(fmtDateTime(c.holdUntil))} · กด นัดสัมภาษณ์ เพื่อหยุดเวลา</span>
     </div>`;
   }
   // HRS decides per candidate; the server sends no salary for the others.
@@ -94,7 +93,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)}</h2>
+          <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
         </div>
         <div class="match"><strong>${pct(c.match)}</strong><span>HR Match</span></div>
@@ -112,22 +111,17 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         ${rec ? `<span class="pill" style="align-self:flex-start;${recStyle}">${esc(rec)}</span>` : ''}
         <p>${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       </div>
-      <div class="decide" role="group" aria-label="Executive Decision ของ ${esc(c.name)}">
-        ${DECIDE.map((d) => {
-          const on = d === 'เรียกสัมภาษณ์' ? calledLike(c.decision) : c.decision === d;
-          return `<button type="button" data-decide="${esc(d)}" data-value="${esc(d)}" data-id="${esc(c.id)}" aria-pressed="${on}">${esc(d)}</button>`;
-        }).join('')}
-      </div>
       ${interviewBlock(c)}
+      <div class="card-actions">
+        ${c.interviewStatus ? '' : `<button type="button" class="btn btn-dark" data-request="${esc(c.id)}"><span style="color:#C8F169;display:flex">${ICONS.calendar}</span>นัดสัมภาษณ์</button>`}
+        <button type="button" class="btn" data-return="${esc(c.id)}">${ICONS.back} ส่งคืน Candidate Pool</button>
+      </div>
       <div class="card-foot">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           ${safeUrl(c.cvUrl) ? `<a href="${esc(safeUrl(c.cvUrl))}" target="_blank" rel="noopener noreferrer" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600">${ICONS.doc} CV</a>` : ''}
           <button type="button" class="btn btn-sm" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
         </div>
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
-          <span class="muted" style="font-size:13px">${c.assignedBy === unit ? 'คุณเลือกจาก Candidate Pool' : `${esc(HRS)} ส่งเข้า Pool นี้`}</span>
-          <button type="button" class="btn btn-sm" data-return="${esc(c.id)}">${ICONS.back} คืน Candidate Pool</button>
-        </div>
+        <span class="muted" style="font-size:13px">${c.assignedBy === unit ? 'คุณเลือกจาก Candidate Pool' : `${esc(HRS)} ส่งเข้า Pool นี้`}</span>
       </div>
     </article>`;
   }
@@ -141,7 +135,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)}</h2>
+          <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary(c) ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
         </div>
         <div class="match"><strong style="font-size:26px">${pct(c.match)}</strong><span>HR Match</span></div>
@@ -177,16 +171,17 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       { label: 'รอพิจารณา', v: count((c) => c.decision === 'รอพิจารณา'), bg: '#FFD84D', fg: '#111', deco: '#fff', shape: '999px' },
       { label: `รอ ${HRS} ยืนยันนัด`, v: count((c) => c.interviewStatus === 'requested'), bg: '#FF7A3D', fg: '#111', deco: '#FFB3D1', shape: '88px 0 0 0' },
       { label: 'นัดสัมภาษณ์แล้ว', v: count((c) => c.interviewStatus === 'confirmed'), bg: '#5B3DF5', fg: '#fff', deco: '#C8F169', shape: '999px' },
-      { label: 'สำรอง', v: count((c) => c.decision === 'สำรอง'), bg: '#8EC5FF', fg: '#111', deco: '#111', shape: '0 88px 0 0' }
+      { label: 'ทั้งหมดใน Pool', v: m.length, bg: '#8EC5FF', fg: '#111', deco: '#111', shape: '0 88px 0 0' }
     ];
+    const chips = [...FILTERS, ...HRS_ONLY_FILTERS.filter((f) => count((c) => c.decision === f) || st.filter === f)];
     const q = st.q.trim().toLowerCase();
     const matchQ = (c) => !q || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(q);
     const shownMine = applyFilters(m, st.f).filter((c) => (st.filter === 'all' || c.decision === st.filter) && matchQ(c));
     const shownPool = applyFilters(p, st.f).filter(matchQ);
     const V = st.view;
-    const bar = filterBarHTML(st.f, positionsOf(V === 'mine' ? m : p), { prefix: 'pf' });
+    const bar = filterBarHTML(st.f, positionsOf(V === 'mine' ? m : p), { prefix: 'pf', dirty: !!st.q || (V === 'mine' && st.filter !== 'all') });
     const HEAD = {
-      mine: [`Pool ของ ${unit}`, `เลือกการตัดสินใจภายใน ${CONFIG.holdHours} ชม. หลังดึงเข้า Pool แล้วส่งคำขอนัดสัมภาษณ์ถึง ${HRS}`],
+      mine: [`Pool ของ ${unit}`, `ขอนัดสัมภาษณ์ภายใน ${CONFIG.holdHours} ชม. หลังดึงเข้า Pool หรือส่งคืน Candidate Pool`],
       market: ['Candidate Pool', `ผู้สมัครที่ ${HRS} คัดกรองแล้วและยังไม่อยู่ใน Pool ของแผนกใด`],
       calendar: ['ปฏิทินสัมภาษณ์', `นัดสัมภาษณ์ของ ${unit} ทั้งที่รอยืนยันและยืนยันแล้ว`]
     };
@@ -230,7 +225,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         </section>
         <div class="toolbar">
           <div class="chip-row" role="group" aria-label="กรองตามสถานะ">
-            ${FILTERS.map((f) => {
+            ${chips.map((f) => {
               const n = f === 'all' ? m.length : count((c) => c.decision === f);
               return `<button type="button" class="chip" data-filter="${esc(f)}" aria-pressed="${st.filter === f}">${f === 'all' ? 'ทั้งหมด' : esc(f)} · ${n}</button>`;
             }).join('')}
@@ -308,41 +303,61 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     }
     if ((el = t('[data-event]')) || (el = t('[data-detail]'))) return detail(byId(el.dataset.event || el.dataset.detail));
     if ((el = t('[data-request]'))) return requestForm(byId(el.dataset.request));
-    if ((el = t('[data-decide]'))) {
-      const c = byId(el.dataset.id);
-      const d = el.dataset.decide;
-      const on = el.getAttribute('aria-pressed') === 'true';
-      anim.press(el);
-      const next = on ? 'รอพิจารณา' : d;
-      if (c.interviewStatus && next !== 'เรียกสัมภาษณ์') {
-        const ok = await confirmDialog({
-          title: c.interviewStatus === 'confirmed' ? 'ยกเลิกนัดสัมภาษณ์?' : 'ยกเลิกคำขอนัด?',
-          body: `นัดของ ${c.name} จะถูกล้าง สถานะเปลี่ยนเป็น "${next}" และ ${HRS} จะได้รับการแจ้งเตือน`,
-          confirm: 'ยกเลิกนัด'
-        });
-        if (!ok) return;
-      }
-      return run(() => store.setDecision(c.id, next));
-    }
-    if ((el = t('[data-pick]'))) {
-      const c = byId(el.dataset.pick);
-      return anim.leave(el.closest('[data-card]'), () => run(() => store.pick(c.id), `เลือก ${c.id} ${c.name} เข้า Pool ของ ${unit} แล้ว · มีเวลาพิจารณา ${CONFIG.holdHours} ชม.`, {
-        action: 'เลิกทำ', onAction: () => run(() => store.returnToPool(c.id), `คืน ${c.id} กลับ Candidate Pool แล้ว`)
-      }));
-    }
-    if ((el = t('[data-return]'))) {
-      const c = byId(el.dataset.return);
-      const ok = await confirmDialog({
-        title: `คืน ${c.name} กลับ Candidate Pool?`,
-        body: `ผู้สมัครจะออกจาก Pool ของคุณ และแผนกอื่นเลือกได้ การตัดสินใจและนัดสัมภาษณ์ของคุณจะถูกล้าง${c.interviewStatus ? ` (${HRS} จะได้รับการแจ้งเตือน)` : ''}`,
-        confirm: 'คืน Candidate Pool'
-      });
-      if (!ok) return;
-      const card = root.querySelector(`[data-card="${CSS.escape(c.id)}"]`);
-      return anim.leave(card, () => run(() => store.returnToPool(c.id), `ส่ง ${c.id} ${c.name} กลับ Candidate Pool แล้ว`));
-    }
+    if ((el = t('[data-pick]'))) return pickCandidate(byId(el.dataset.pick));
+    if ((el = t('[data-return]'))) return returnCandidate(byId(el.dataset.return));
     if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; st.animate = true; return render(); }
+    if ((el = t('[data-f-clear]'))) {
+      st.f = newFilterState(); st.q = ''; st.filter = 'all'; st.animate = true;
+      render();
+      toast('ล้างตัวกรองแล้ว');
+      return;
+    }
+    // Anywhere else on a card (or its name) opens the profile.
+    if ((el = t('[data-profile]')) || (!t('button, a, input, select, label') && (el = t('[data-card]')))) {
+      return profile(byId(el.dataset.profile || el.dataset.card));
+    }
   };
+
+  const cardOf = (c) => root.querySelector(`[data-card="${CSS.escape(c.id)}"]`);
+  const leaveThen = (c, go) => { const card = cardOf(c); return card ? anim.leave(card, go) : go(); };
+
+  function pickCandidate(c) {
+    return leaveThen(c, () => run(() => store.pick(c.id), `เลือก ${c.id} ${c.name} เข้า Pool ของ ${unit} แล้ว · มีเวลาพิจารณา ${CONFIG.holdHours} ชม.`, {
+      action: 'เลิกทำ', onAction: () => run(() => store.returnToPool(c.id), `คืน ${c.id} กลับ Candidate Pool แล้ว`)
+    }));
+  }
+  async function returnCandidate(c) {
+    const ok = await confirmDialog({
+      title: `ส่งคืน ${c.name} กลับ Candidate Pool?`,
+      body: `ผู้สมัครจะออกจาก Pool ของคุณ และแผนกอื่นเลือกได้ นัดสัมภาษณ์ของคุณจะถูกล้าง${c.interviewStatus ? ` (${HRS} จะได้รับการแจ้งเตือน)` : ''}`,
+      confirm: 'ส่งคืน Candidate Pool'
+    });
+    if (!ok) return;
+    return leaveThen(c, () => run(() => store.returnToPool(c.id), `ส่ง ${c.id} ${c.name} กลับ Candidate Pool แล้ว`));
+  }
+
+  // Profile popup with the actions that fit where the candidate is.
+  function profile(c) {
+    if (!c) return;
+    const compareAct = { id: 'compare', label: 'เทียบ', icon: ICONS.radar };
+    const actions = c.location === POOL
+      ? [compareAct, { id: 'pick', label: `เลือกเข้า Pool ของ ${unit}`, primary: true }]
+      : [compareAct, { id: 'return', label: 'ส่งคืน Candidate Pool' },
+        c.interviewStatus
+          ? { id: 'detail', label: c.interviewStatus === 'confirmed' ? 'ดูนัด / ขอเปลี่ยนนัด' : 'แก้ไขคำขอนัด', primary: true }
+          : { id: 'request', label: 'นัดสัมภาษณ์', primary: true }];
+    openProfile(c, {
+      actions,
+      showSalary: showSalary(c),
+      onAction: (id) => {
+        if (id === 'compare') return openCompare(visibleForCompare(), [c.id], { salaries: visibleForCompare().some(showSalary) });
+        if (id === 'pick') return pickCandidate(c);
+        if (id === 'return') return returnCandidate(c);
+        if (id === 'detail') return detail(c);
+        if (id === 'request') return requestForm(c);
+      }
+    });
+  }
   root.onchange = (e) => {
     if (updateFilter(st.f, e.target)) {
       const id = e.target.id;
