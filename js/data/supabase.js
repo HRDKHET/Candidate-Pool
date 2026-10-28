@@ -3,8 +3,8 @@
 // in supabase/*.sql; the checks here only give friendlier messages.
 import { CONFIG, accountEmail } from '../config.js';
 import { validateInterview, validateUnitCode } from './rules.js';
+import { loadLib } from '../cdn.js';
 
-const SUPABASE_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm';
 let client = null;
 let profile = null;
 
@@ -13,7 +13,7 @@ async function sb() {
   if (!CONFIG.supabaseUrl || !CONFIG.supabaseAnonKey) {
     throw new Error('ยังไม่ได้ตั้งค่า supabaseUrl และ supabaseAnonKey ใน js/config.js');
   }
-  const { createClient } = await import(SUPABASE_URL);
+  const { createClient } = await loadLib('supabase');
   client = createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
   return client;
 }
@@ -57,6 +57,15 @@ const CLEAR_INTERVIEW_ROW = {
 };
 
 const check = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+
+// Candidates already downloaded by this account, kept between page reloads of the list.
+const SYNC_OVERLAP_MS = 60000;
+const cache = { rows: new Map(), since: null };
+function remember(r) {
+  cache.rows.set(r.id, fromRow(r));
+  if (!cache.since || r.updated_at > cache.since) cache.since = r.updated_at;
+}
+const forget = () => { cache.rows.clear(); cache.since = null; };
 
 async function loadProfile() {
   const c = await sb();
@@ -115,6 +124,7 @@ export const supabaseStore = {
     if (role !== 'admin' && !unit) throw new Error('กรุณาเลือกแผนก');
     const email = accountEmail(role, unit);
     if (!password) throw new Error('กรุณาใส่รหัสผ่าน');
+    forget();
     const { error } = await c.auth.signInWithPassword({ email, password });
     if (error) throw new Error('รหัสผ่านไม่ถูกต้อง');
     const p = await loadProfile();
@@ -124,14 +134,30 @@ export const supabaseStore = {
     return { userId: p.id, username: accountName(p), role: p.role, unit: p.unit };
   },
 
-  async signOut() { const c = await sb(); profile = null; await c.auth.signOut(); },
+  async signOut() { const c = await sb(); profile = null; forget(); await c.auth.signOut(); },
 
+  // Downloads full rows only for candidates changed since the last load; for the
+  // rest it fetches just the ids still visible to this account, so deleted rows
+  // and candidates taken by another unit drop out of the cached list.
   async listCandidates() {
     const c = await sb();
     // Return candidates whose 72-hour decision window has passed (no cron needed:
     // every page load runs it). Failure here must not block the list.
     try { await c.rpc('release_expired_holds'); } catch (e) { /* ignore */ }
-    return check(await c.from('candidates').select('*').order('hr_match', { ascending: false, nullsFirst: false })).map(fromRow);
+    if (!cache.rows.size) {
+      check(await c.from('candidates').select('*')).forEach(remember);
+    } else {
+      // Look back a little so a write committed just after the last load is not missed.
+      const since = new Date(new Date(cache.since).getTime() - SYNC_OVERLAP_MS).toISOString();
+      const [ids, changed] = await Promise.all([
+        c.from('candidates').select('id'),
+        c.from('candidates').select('*').gt('updated_at', since)
+      ]);
+      const visible = new Set(check(ids).map((r) => r.id));
+      for (const id of cache.rows.keys()) if (!visible.has(id)) cache.rows.delete(id);
+      check(changed).forEach(remember);
+    }
+    return [...cache.rows.values()].sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
   },
 
   async pick(id) { const c = await sb(); return fromRow(check(await c.rpc('pjt_pick', { p_id: id }))); },

@@ -1,22 +1,11 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, RECOMMENDATIONS, locLabel, interviewerText } from './ui.js';
+import { POOL, UNITS, DECISIONS, RECOMMENDATIONS, locLabel, interviewerText, safeUrl } from './ui.js';
+import { loadLib } from './cdn.js';
 
-const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-let loading = null;
-function loadXLSX() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
-  if (!loading) {
-    loading = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = XLSX_URL;
-      s.onload = () => resolve(window.XLSX);
-      s.onerror = () => { loading = null; reject(new Error('โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')); };
-      document.head.appendChild(s);
-    });
-  }
-  return loading;
-}
+const loadXLSX = () => loadLib('xlsx').catch(() => {
+  throw new Error('โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+});
 
 // Header text in the workbook -> field. Several sheets use different labels for the same thing.
 const HEADERS = {
@@ -92,7 +81,7 @@ export async function parseWorkbook(file) {
         age: num(raw.age), experience: num(raw.experience),
         education: String(raw.education ?? '').trim(),
         company: String(raw.company ?? (/^https?:/i.test(cv) ? '' : cv)).trim(),
-        cvUrl: /^https?:/i.test(cv) ? cv : '',
+        cvUrl: safeUrl(cv),
         salaryCurrent: num(raw.salaryCurrent), salaryExpected: num(raw.salaryExpected), match,
         prescreenDate: excelDate(raw.prescreenDate, false),
         recommendation: RECOMMENDATIONS.includes(rec) ? rec : '',

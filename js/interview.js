@@ -1,7 +1,7 @@
 // Interview form (unit request or HRS confirmation) and the read-only detail view.
 import {
   esc, ICONS, HRS, DIVISIONS, MODE_LABEL, INTERVIEW_STATUS, toLocalInput, fmtDateTime,
-  unitFullLabel, openModal, errorMessage
+  unitFullLabel, openModal, errorMessage, safeUrl
 } from './ui.js';
 
 let rowSeq = 0;
@@ -123,7 +123,7 @@ export function showInterviewDetail(c, { actions = [], onAction } = {}) {
       <div><dt>วันและเวลา</dt><dd>${esc(fmtDateTime(c.interviewAt))}</dd></div>
       <div><dt>รูปแบบ</dt><dd>${esc(MODE_LABEL[c.interviewMode] || '—')}</dd></div>
       ${c.interviewMode === 'onsite' ? `<div class="span-2" style="grid-column:span 2"><dt>สถานที่</dt><dd>${esc(c.interviewLocation || '—')}</dd></div>` : ''}
-      ${c.interviewMode === 'online' ? `<div style="grid-column:span 2"><dt>ลิงก์เข้าสัมภาษณ์</dt><dd>${c.meetingLink ? `<a href="${esc(c.meetingLink)}" target="_blank" rel="noopener noreferrer">${esc(c.meetingLink)}</a>` : `<span class="muted">รอ ${esc(HRS)} ส่งลิงก์</span>`}</dd></div>` : ''}
+      ${c.interviewMode === 'online' ? `<div style="grid-column:span 2"><dt>ลิงก์เข้าสัมภาษณ์</dt><dd>${safeUrl(c.meetingLink) ? `<a href="${esc(safeUrl(c.meetingLink))}" target="_blank" rel="noopener noreferrer">${esc(c.meetingLink)}</a>` : `<span class="muted">รอ ${esc(HRS)} ส่งลิงก์</span>`}</dd></div>` : ''}
       <div><dt>ชื่อโครงการ</dt><dd>${esc(c.projectName || '—')}</dd></div>
       <div><dt>หมายเหตุ</dt><dd>${esc(c.remark || '—')}</dd></div>
       ${c.confirmNote ? `<div style="grid-column:span 2"><dt>ข้อความจาก ${esc(HRS)}</dt><dd>${esc(c.confirmNote)}</dd></div>` : ''}

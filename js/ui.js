@@ -90,6 +90,9 @@ export function avatarFor(id) {
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// Only http(s) links may become an href: blocks javascript:, data: and similar.
+export const isWebUrl = (u) => /^https?:\/\/[^\s]+$/i.test(String(u || '').trim());
+export const safeUrl = (u) => (isWebUrl(u) ? String(u).trim() : '');
 
 export function recommendationFor(c) {
   if (c.recommendation) return c.recommendation;

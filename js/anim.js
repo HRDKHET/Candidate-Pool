@@ -1,6 +1,7 @@
 // Thin wrapper over anime.js v4. Every helper is a no-op when the library failed
 // to load or the viewer prefers reduced motion, so the UI always works without it.
-const ANIME_URL = 'https://cdn.jsdelivr.net/npm/animejs@4.0.2/lib/anime.esm.js';
+import { loadLib } from './cdn.js';
+
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let lib = null;
 let loading = null;
@@ -8,7 +9,7 @@ let loading = null;
 export function loadAnime(timeoutMs = 2000) {
   if (reduce) return Promise.resolve(null);
   if (!loading) {
-    loading = import(ANIME_URL).then((m) => (lib = m)).catch(() => null);
+    loading = loadLib('anime').then((m) => (lib = m)).catch(() => null);
   }
   return Promise.race([loading, new Promise((r) => setTimeout(() => r(null), timeoutMs))]);
 }

@@ -2,7 +2,7 @@
 // interview calendar, candidate comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, safeUrl
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -52,7 +52,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
           <strong style="font-size:15px">ยืนยันนัดแล้ว · ${esc(fmtDateTime(c.interviewAt))}</strong>
           <span>${c.interviewMode === 'online'
-            ? (c.meetingLink ? `${ICONS.video} <a href="${esc(c.meetingLink)}" target="_blank" rel="noopener noreferrer">เข้าห้องสัมภาษณ์ Online</a>` : 'Online')
+            ? (safeUrl(c.meetingLink) ? `${ICONS.video} <a href="${esc(safeUrl(c.meetingLink))}" target="_blank" rel="noopener noreferrer">เข้าห้องสัมภาษณ์ Online</a>` : 'Online')
             : `${ICONS.pin} ${esc(c.interviewLocation || 'Onsite')}`}</span>
         </span>
         <button type="button" class="btn btn-sm" data-detail="${esc(c.id)}">รายละเอียด</button>
@@ -112,7 +112,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       ${interviewBlock(c)}
       <div class="card-foot">
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-          ${c.cvUrl ? `<a href="${esc(c.cvUrl)}" target="_blank" rel="noopener noreferrer" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600">${ICONS.doc} CV</a>` : ''}
+          ${safeUrl(c.cvUrl) ? `<a href="${esc(safeUrl(c.cvUrl))}" target="_blank" rel="noopener noreferrer" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600">${ICONS.doc} CV</a>` : ''}
           <button type="button" class="btn btn-sm" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
         </div>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">

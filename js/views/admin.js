@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -341,6 +341,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
         };
         if (!rec.id || !rec.name) { err.hidden = false; err.textContent = 'ต้องระบุ Candidate ID และชื่อ-นามสกุล'; return; }
+        rec.cvUrl = (d.cvUrl || '').trim();
+        if (rec.cvUrl && !isWebUrl(rec.cvUrl)) { err.hidden = false; err.textContent = 'ลิงก์ Resume / CV ต้องขึ้นต้นด้วย https:// หรือ http://'; return; }
         try {
           await store.saveCandidate(rec, isNew);
           close(); await reload();

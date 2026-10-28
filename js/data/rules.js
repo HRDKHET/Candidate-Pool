@@ -32,7 +32,7 @@ export function validateInterview(s, { requireLink = false } = {}) {
     throw new Error('กรุณากรอกชื่อ-สกุล ตำแหน่ง และฝ่าย ของผู้สัมภาษณ์ให้ครบทุกคน');
   }
   if (s.interviewMode === 'onsite' && !s.interviewLocation) throw new Error('กรุณาระบุสถานที่สัมภาษณ์');
-  if (requireLink && s.interviewMode === 'online' && !/^https?:\/\//i.test(s.meetingLink || '')) {
+  if (requireLink && s.interviewMode === 'online' && !/^https?:\/\/[^\s]+$/i.test((s.meetingLink || '').trim())) {
     throw new Error('กรุณาใส่ลิงก์เข้าสัมภาษณ์ Online ที่ขึ้นต้นด้วย https://');
   }
   return { ...s, interviewers: people };
