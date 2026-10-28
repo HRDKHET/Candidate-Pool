@@ -357,12 +357,15 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 .tip-i:hover, .tip-i:focus-visible { background: var(--violet); color: #fff; }
 .radar-label[data-tip] { cursor: help; outline: none; }
 .radar-label[data-tip]:hover, .radar-label[data-tip]:focus { fill: var(--violet); text-decoration: underline; }
-.tip { position: fixed; z-index: 70; max-width: min(320px, calc(100vw - 16px)); padding: 12px 14px; border-radius: 14px; background: #111; color: #fff; font-size: 13px; line-height: 1.55; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 10px 28px rgba(0,0,0,.28); pointer-events: none; }
+/* Faint, see-through bubble that fades in. */
+.tip { --tip-bg: rgba(17, 17, 17, .72); position: fixed; z-index: 70; max-width: min(280px, calc(100vw - 16px)); padding: 8px 12px; border-radius: 12px; background: var(--tip-bg); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); color: #fff; font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.14); pointer-events: none; animation: tip-in .18s ease-out; }
 .tip[hidden] { display: none; }
-.tip strong { font-size: 14px; }
-.tip b { color: #C8F169; font-weight: 700; margin-right: 4px; }
-.tip::after { content: ''; position: absolute; left: var(--arrow, 50%); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #111; transform: rotate(45deg); }
-.tip.below::after { bottom: auto; top: -6px; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(4px); } }
+.tip.below { animation-name: tip-in-below; }
+@keyframes tip-in-below { from { opacity: 0; transform: translateY(-4px); } }
+.tip::after { content: ''; position: absolute; left: var(--arrow, 50%); bottom: -7px; width: 14px; height: 7px; margin-left: -7px; background: var(--tip-bg); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.tip.below::after { bottom: auto; top: -7px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+@media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 /* flex: none — inside the height-capped list, items must scroll, never squash. */
 .compare-item { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); cursor: pointer; min-height: 44px; line-height: 1.45; }
 .compare-item .new-badge { flex: none; }
