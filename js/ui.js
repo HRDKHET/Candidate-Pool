@@ -41,6 +41,16 @@ export const DECISION_STYLE = {
   'ไม่พิจารณา': { color: '#111111', bg: '#ECEBE7', fg: '#3D3C38' }
 };
 export const RECOMMENDATIONS = ['Strongly Recommend', 'Recommend', 'Consider', 'Review'];
+// Stored in English (database and Excel keys); shown in Thai.
+export const REC_LABEL = {
+  'Strongly Recommend': 'แนะนำอย่างยิ่ง', Recommend: 'แนะนำ', Consider: 'ควรพิจารณา', Review: 'ทบทวน'
+};
+export const recLabel = (r) => REC_LABEL[r] || r || '';
+// Accepts the English key or its Thai label; returns the English key, or '' if neither.
+export const recKey = (s) => {
+  const t = String(s ?? '').trim();
+  return RECOMMENDATIONS.find((r) => r.toLowerCase() === t.toLowerCase() || REC_LABEL[r] === t) || '';
+};
 
 const LOC_STYLE = [
   { color: '#FF7A3D', shape: '999px' },

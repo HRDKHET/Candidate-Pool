@@ -1,7 +1,7 @@
 // แผนก workspace: own pool (request interviews, return), the Candidate Pool (pick),
 // candidate profiles, interview calendar, comparison and notifications.
 import {
-  esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
+  esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, recLabel, unitFullLabel,
   fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor
 } from '../ui.js';
 import { CONFIG } from '../config.js';
@@ -104,7 +104,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <div><dt>เงินเดือนคาดหวัง</dt><dd>${baht(c.salaryExpected)}</dd></div>` : ''}
       </dl>
       <div class="note">
-        ${rec ? `<span class="pill" style="align-self:flex-start;${recStyle}">${esc(rec)}</span>` : ''}
+        ${rec ? `<span class="pill" style="align-self:flex-start;${recStyle}">${esc(recLabel(rec))}</span>` : ''}
         <p>${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       </div>
       ${interviewBlock(c)}

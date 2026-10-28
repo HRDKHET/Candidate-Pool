@@ -1,6 +1,6 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, RECOMMENDATIONS, locLabel, interviewerText, safeUrl } from './ui.js';
+import { POOL, UNITS, DECISIONS, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
 import { loadLib } from './cdn.js';
 
 const loadXLSX = () => loadLib('xlsx').catch(() => {
@@ -84,8 +84,8 @@ export async function parseWorkbook(file) {
         cvUrl: safeUrl(cv),
         salaryCurrent: num(raw.salaryCurrent), salaryExpected: num(raw.salaryExpected), match,
         prescreenDate: excelDate(raw.prescreenDate, false),
-        recommendation: RECOMMENDATIONS.includes(rec) ? rec : '',
-        hrNote: String(raw.hrNote ?? (RECOMMENDATIONS.includes(rec) ? '' : rec)).trim(),
+        recommendation: recKey(rec),
+        hrNote: String(raw.hrNote ?? (recKey(rec) ? '' : rec)).trim(),
         decision,
         interviewAt: excelDate(raw.interviewAt, true),
         // The workbook has one free-text interviewer cell; position/ฝ่าย are filled in later.
@@ -112,7 +112,7 @@ export async function exportWorkbook(candidates) {
     'Candidate ID': c.id, 'ชื่อ-นามสกุล': c.name, 'ตำแหน่ง': c.position, 'อายุ': c.age,
     'ประสบการณ์รวม (ปี)': c.experience, 'การศึกษา': c.education, 'บริษัทล่าสุด': c.company,
     'Resume/CV': c.cvUrl, 'เงินเดือนปัจจุบัน': c.salaryCurrent, 'เงินเดือนคาดหวัง': c.salaryExpected,
-    'HR Match %': c.match, 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': c.recommendation,
+    'HR Match %': c.match, 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': recLabel(c.recommendation),
     'HR Highlight': c.hrNote, 'Executive Decision': c.decision,
     'วัน/เวลา ที่ต้องการนัดสัมภาษณ์': c.interviewAt ? new Date(c.interviewAt).toLocaleString('th-TH') : '',
     'สถานะนัด': c.interviewStatus === 'confirmed' ? 'ยืนยันแล้ว' : c.interviewStatus === 'requested' ? 'รอยืนยัน' : '',

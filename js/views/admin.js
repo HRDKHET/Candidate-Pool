@@ -1,7 +1,7 @@
 // HRS back office: overview + interview requests, full candidate pool control,
 // interview calendar, users & permissions.
 import {
-  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
+  esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
   confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor
 } from '../ui.js';
@@ -331,7 +331,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <label class="span-2" style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;min-height:44px"><input type="checkbox" name="showSalary" ${v.showSalary ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--violet)">ให้แผนกเห็นเงินเดือนของผู้สมัครรายนี้</label>
         ${f('match', 'HR Match % (0–100)', v.match == null ? '' : Math.round(v.match * 100), 'number')}
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
-        <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก HR Match</option>${RECOMMENDATIONS.map((r) => `<option ${r === v.recommendation ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+        <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก HR Match</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
         <div class="field"><label for="cf-loc">อยู่ที่ Pool</label><select id="cf-loc" name="location" class="input">${LOCATIONS.map((l) => `<option value="${esc(l)}" ${l === v.location ? 'selected' : ''}>${esc(locLabel(l))}</option>`).join('')}</select></div>
         <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="3">${esc(v.hrNote || '')}</textarea></div>
         <div class="field span-2"><label for="cf-dec">Executive Decision</label><select id="cf-dec" name="decision" class="input">${DECISIONS.map((d) => `<option ${d === v.decision ? 'selected' : ''}>${d}</option>`).join('')}</select></div>

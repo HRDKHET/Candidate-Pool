@@ -1,7 +1,7 @@
 // Candidate profile popup: everything about one candidate in one place.
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
-  esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor,
+  esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor, recLabel,
   fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor
 } from './ui.js';
 
@@ -86,7 +86,7 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
     </section>
 
     <section class="profile-section" aria-labelledby="pf-hr">
-      <h3 id="pf-hr">ความเห็น ${esc(HRS)} ${rec ? `<span class="pill" style="background:#E4DDFF;color:#2A1A8C">${esc(rec)}</span>` : ''}</h3>
+      <h3 id="pf-hr">ความเห็น ${esc(HRS)} ${rec ? `<span class="pill" style="background:#E4DDFF;color:#2A1A8C">${esc(recLabel(rec))}</span>` : ''}</h3>
       <p style="font-size:15px;line-height:1.7">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       ${cv ? `<a class="btn btn-sm" style="align-self:flex-start" href="${esc(cv)}" target="_blank" rel="noopener noreferrer">${ICONS.doc} เปิด Resume / CV</a>` : '<span class="muted" style="font-size:14px">ไม่มีลิงก์ Resume / CV</span>'}
     </section>

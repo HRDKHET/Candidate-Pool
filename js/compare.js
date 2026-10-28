@@ -1,5 +1,5 @@
 // Side-by-side candidate comparison on a radar (spider) chart, up to 4 at once.
-import { esc, ICONS, recommendationFor, baht, pct, openModal, isNew, NEW_BADGE } from './ui.js';
+import { esc, ICONS, recommendationFor, recLabel, baht, pct, openModal, isNew, NEW_BADGE } from './ui.js';
 import * as anim from './anim.js';
 import { positionsOf } from './filters.js';
 
@@ -26,8 +26,8 @@ function allDimensions(all) {
       score: (c) => (c.match == null ? null : clamp(c.match * 100)), raw: (c) => pct(c.match) },
     { key: 'exp', label: 'ประสบการณ์', how: '15 ปีขึ้นไป = เต็ม 100',
       score: (c) => (c.experience == null ? null : clamp((c.experience / 15) * 100)), raw: (c) => (c.experience == null ? '—' : c.experience + ' ปี') },
-    { key: 'rec', label: 'คำแนะนำ HR', how: 'Strongly Recommend 100 · Recommend 75 · Consider 50 · Review 25',
-      score: (c) => REC_SCORE[recommendationFor(c)] ?? null, raw: (c) => recommendationFor(c) || '—' },
+    { key: 'rec', label: 'คำแนะนำ HR', how: 'แนะนำอย่างยิ่ง 100 · แนะนำ 75 · ควรพิจารณา 50 · ทบทวน 25',
+      score: (c) => REC_SCORE[recommendationFor(c)] ?? null, raw: (c) => recLabel(recommendationFor(c)) || '—' },
     { key: 'cost', label: 'ความคุ้มค่าเงินเดือน', how: 'เงินเดือนคาดหวังต่ำสุดในรายชื่อ = 100, สูงสุด = 40',
       score: (c) => (c.salaryExpected == null || c.salaryExpected === '' ? null : hi === lo ? 100 : clamp(100 - ((c.salaryExpected - lo) / (hi - lo)) * 60)),
       raw: (c) => baht(c.salaryExpected) },
