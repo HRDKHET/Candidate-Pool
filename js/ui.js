@@ -47,7 +47,7 @@ export const REC_LABEL = {
 };
 export const recLabel = (r) => REC_LABEL[r] || r || '';
 // Comparison dimensions. HRS scores each 1–5; stored as candidates.scores (supabase/009_*.sql).
-// source = what HRS reads in the resume; aim = what the score tells you. Shown as a hover tip.
+// source = what HRS reads in the resume (shown as the hover tip); aim = what the score tells you.
 export const DIMENSIONS = [
   { key: 'exp', label: 'ประสบการณ์', full: 'ประสบการณ์',
     source: 'บริษัท ประเภทธุรกิจ ตำแหน่ง ระยะเวลา ขนาดงาน และขอบเขตความรับผิดชอบ',
@@ -82,7 +82,7 @@ let tipEl = null, tipFor = null;
 function tipHTML(key) {
   const d = DIMENSIONS.find((x) => x.key === key);
   if (!d) return '';
-  return `<strong>${esc(d.full)}</strong><span><b>ดูจาก</b> ${esc(d.source)}</span><span><b>เพื่อเห็น</b> ${esc(d.aim)}</span>`;
+  return `<span>${esc(d.source)}</span>`;
 }
 function showTip(target) {
   const html = tipHTML(target.getAttribute('data-tip'));
