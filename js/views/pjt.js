@@ -2,7 +2,7 @@
 // interview calendar, candidate comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, safeUrl
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -18,13 +18,15 @@ const FILTERS = ['all', 'รอพิจารณา', 'เรียกสัม
 export function mountPjt(root, { store, session, signOut, onCleanup }) {
   const unit = session.unit;
   const st = {
-    list: [], notifs: [], view: 'mine', filter: 'all', q: '', loading: true, error: '', animate: true,
+    list: [], notifs: [], settings: { showSalaries: false }, view: 'mine', filter: 'all', q: '', loading: true, error: '', animate: true,
     month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
-    try { st.list = await store.listCandidates(); st.error = ''; }
-    catch (e) { st.error = errorMessage(e); }
+    try {
+      [st.list, st.settings] = await Promise.all([store.listCandidates(), store.getSettings()]);
+      st.error = '';
+    } catch (e) { st.error = errorMessage(e); }
     // Listing may have released expired holds, which creates notifications.
     try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
@@ -64,15 +66,21 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     return '';
   }
 
-  // Countdown for candidates this unit picked and has not decided on yet.
+  // Live countdown (hours:minutes:seconds) for candidates this unit picked and has
+  // not decided on yet; the ticker below updates [data-hold] every second.
   function holdBlock(c) {
     const h = holdLeft(c);
     if (!h) return '';
-    return `<div class="hold${h.urgent ? ' urgent' : ''}" role="note">
-      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
-      <span>เหลือเวลาพิจารณา <strong data-hold="${esc(c.holdUntil)}">${esc(h.text)}</strong> · ถ้ายังไม่ตัดสินใจภายใน ${esc(fmtDateTime(c.holdUntil))} จะกลับเข้า Candidate Pool</span>
+    return `<div class="hold${h.urgent ? ' urgent' : ''}" data-hold-box>
+      <div class="hold-top">
+        <span class="hold-label"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>เด้งกลับ Candidate Pool ใน</span>
+        <span class="hold-clock"><strong class="mono" data-hold="${esc(c.holdUntil)}" aria-label="เหลือ ${esc(h.text)}">${esc(h.clock)}</strong> ชม.</span>
+      </div>
+      <div class="hold-track" aria-hidden="true"><div data-hold-bar style="width:${(h.share * 100).toFixed(2)}%"></div></div>
+      <span class="hold-note">ครบกำหนด ${esc(fmtDateTime(c.holdUntil))} · เลือก เรียกสัมภาษณ์ / สำรอง / ไม่พิจารณา เพื่อหยุดเวลา</span>
     </div>`;
   }
+  const showSalary = () => st.settings.showSalaries;
 
   function candidateCard(c) {
     const av = avatarFor(c.id);
@@ -82,11 +90,12 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     const recStyle = rec === 'Strongly Recommend' ? 'background:#111;color:#fff' : rec === 'Recommend' ? 'background:#E4DDFF;color:#2A1A8C' : 'background:#ECEBE7;color:#3D3C38';
     return `
     <article class="card" data-card="${esc(c.id)}">
+      ${isNew(c) ? NEW_TAG : ''}
       <div class="card-head">
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</h2>
+          <h2>${esc(c.name)}</h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
         </div>
         <div class="match"><strong>${pct(c.match)}</strong><span>HR Match</span></div>
@@ -96,8 +105,9 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       <dl class="facts">
         <div><dt>บริษัทล่าสุด</dt><dd>${esc(c.company || '—')}</dd></div>
         <div><dt>การศึกษา</dt><dd>${esc(c.education || '—')}</dd></div>
+        ${showSalary() ? `
         <div><dt>เงินเดือนปัจจุบัน</dt><dd>${baht(c.salaryCurrent)}</dd></div>
-        <div><dt>เงินเดือนคาดหวัง</dt><dd>${baht(c.salaryExpected)}</dd></div>
+        <div><dt>เงินเดือนคาดหวัง</dt><dd>${baht(c.salaryExpected)}</dd></div>` : ''}
       </dl>
       <div class="note">
         ${rec ? `<span class="pill" style="align-self:flex-start;${recStyle}">${esc(rec)}</span>` : ''}
@@ -127,12 +137,13 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     const av = avatarFor(c.id);
     return `
     <article class="card" data-card="${esc(c.id)}" style="gap:16px">
+      ${isNew(c) ? NEW_TAG : ''}
       <div class="card-head">
         <span class="avatar" aria-hidden="true" style="border-radius:${av.shape};background:${av.bg};color:${av.fg}">${esc(c.name.charAt(0))}</span>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
-          <h2>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</h2>
-          <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · คาดหวัง ${baht(c.salaryExpected)}</span>
+          <h2>${esc(c.name)}</h2>
+          <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary() ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
         </div>
         <div class="match"><strong style="font-size:26px">${pct(c.match)}</strong><span>HR Match</span></div>
       </div>
@@ -184,13 +195,13 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     root.innerHTML = `
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div class="logo">${LOGO}<span>Candidate Pool</span></div>
+        <a href="#/pjt" class="logo" data-home title="กลับหน้าหลักและรีเฟรช">${LOGO}<span>Candidate Pool</span></a>
         <span class="unit-badge">${esc(unitFullLabel(unit))}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="account-bar" style="margin:0">
         ${bellHTML(st.notifs)}
-        <span style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600"><span class="avatar-sm" aria-hidden="true">${esc((session.username || 'U').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
-        <button type="button" class="btn btn-sm" data-signout>${ICONS.logout} ออกจากระบบ</button>
+        <span class="account-name"><span class="avatar-sm" aria-hidden="true">${esc((session.username || 'U').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
+        <button type="button" class="btn btn-sm btn-dark" data-signout>${ICONS.logout} ออกจากระบบ</button>
       </div>
     </header>
     <main class="page">
@@ -271,6 +282,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
     const t = (sel) => e.target.closest(sel);
     let el;
     if ((el = t('[data-signout]'))) return signOut();
+    if ((el = t('[data-home]'))) { e.preventDefault(); return goHome('#/pjt'); }
     if ((el = t('[data-bell]'))) {
       const list = st.notifs;
       openNotifications(list, { onItem: (id) => { const c = byId(id); if (c && c.interviewStatus) detail(c); } });
@@ -284,8 +296,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       return;
     }
     if ((el = t('[data-refresh]'))) { anim.press(el); return reload({ animate: true }); }
-    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos });
-    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare]);
+    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos, salaries: showSalary() });
+    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare], { salaries: showSalary() });
     if ((el = t('[data-view]'))) { st.view = el.dataset.view; st.q = ''; st.animate = true; return render(); }
     if ((el = t('[data-filter]'))) { st.filter = el.dataset.filter; st.animate = true; return render(); }
     if ((el = t('[data-cal]'))) {
@@ -340,16 +352,22 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       if (back) back.focus();
     }
   };
-  // Keep countdowns current without re-rendering the page.
+  // Keep countdowns ticking every second without re-rendering the page.
+  // Each deadline triggers at most one reload, which lets the server release it.
+  const reloadedFor = new Set();
   const ticker = setInterval(() => {
     let expired = false;
     root.querySelectorAll('[data-hold]').forEach((el) => {
       const h = holdLeft({ holdUntil: el.dataset.hold, decision: 'รอพิจารณา' });
-      el.textContent = h.text;
-      if (h.ms <= 0) expired = true;
+      el.textContent = h.clock;
+      el.setAttribute('aria-label', 'เหลือ ' + h.text);
+      const box = el.closest('[data-hold-box]');
+      box.classList.toggle('urgent', h.urgent);
+      box.querySelector('[data-hold-bar]').style.width = (h.share * 100).toFixed(2) + '%';
+      if (h.ms <= 0 && !reloadedFor.has(el.dataset.hold)) { reloadedFor.add(el.dataset.hold); expired = true; }
     });
     if (expired) reload();
-  }, 30000);
+  }, 1000);
   root.oninput = (e) => {
     if (e.target.id === 'pjt-search') {
       st.q = e.target.value;

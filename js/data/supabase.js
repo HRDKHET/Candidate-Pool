@@ -21,7 +21,6 @@ async function sb() {
 const fromRow = (r) => ({
   id: r.id, name: r.name, position: r.position, age: r.age, experience: r.experience,
   education: r.education, company: r.company, cvUrl: r.cv_url,
-  salaryCurrent: r.salary_current, salaryExpected: r.salary_expected,
   match: r.hr_match == null ? null : Number(r.hr_match), prescreenDate: r.prescreen_date,
   recommendation: r.recommendation, hrNote: r.hr_note, decision: r.decision,
   interviewAt: r.interview_at, interviewMode: r.interview_mode, interviewStatus: r.interview_status,
@@ -34,10 +33,11 @@ const fromRow = (r) => ({
   createdAt: r.created_at, holdUntil: r.hold_until
 });
 // created_at and hold_until are managed by the database (default + trigger), never sent.
+// Salaries live in candidate_salaries (see supabase/007_salary_visibility.sql).
 const toRow = (c) => ({
   id: c.id, name: c.name, position: c.position || null, age: c.age ?? null,
   experience: c.experience ?? null, education: c.education || null, company: c.company || null,
-  cv_url: c.cvUrl || null, salary_current: c.salaryCurrent ?? null, salary_expected: c.salaryExpected ?? null,
+  cv_url: c.cvUrl || null,
   hr_match: c.match ?? null, prescreen_date: c.prescreenDate || null,
   recommendation: c.recommendation || null, hr_note: c.hrNote || null,
   decision: c.decision || 'รอพิจารณา',
@@ -48,6 +48,9 @@ const toRow = (c) => ({
   interview_requested_by: c.requestedBy || null, interview_requested_at: c.requestedAt || null,
   interview_confirmed_at: c.confirmedAt || null, interview_confirm_note: c.confirmNote || null,
   location: c.location || 'HR', assigned_by: c.assignedBy || null
+});
+const toSalaryRow = (c) => ({
+  candidate_id: c.id, salary_current: c.salaryCurrent ?? null, salary_expected: c.salaryExpected ?? null
 });
 const CLEAR_INTERVIEW_ROW = {
   interview_at: null, interview_mode: null, interview_status: null, interviewers: [],
@@ -60,12 +63,27 @@ const check = ({ data, error }) => { if (error) throw new Error(error.message); 
 
 // Candidates already downloaded by this account, kept between page reloads of the list.
 const SYNC_OVERLAP_MS = 60000;
-const cache = { rows: new Map(), since: null };
+const cache = { rows: new Map(), since: null, sal: new Map(), salSince: null };
+const later = (a, b) => (!a || b > a ? b : a);
 function remember(r) {
   cache.rows.set(r.id, fromRow(r));
-  if (!cache.since || r.updated_at > cache.since) cache.since = r.updated_at;
+  cache.since = later(cache.since, r.updated_at);
 }
-const forget = () => { cache.rows.clear(); cache.since = null; };
+function rememberSalary(r) {
+  cache.sal.set(r.candidate_id, { salaryCurrent: r.salary_current, salaryExpected: r.salary_expected });
+  cache.salSince = later(cache.salSince, r.updated_at);
+}
+const forgetSalaries = () => { cache.sal.clear(); cache.salSince = null; };
+const forget = () => { cache.rows.clear(); cache.since = null; forgetSalaries(); };
+const sinceWithOverlap = (iso) => new Date(new Date(iso).getTime() - SYNC_OVERLAP_MS).toISOString();
+
+const DEFAULT_SETTINGS = { showSalaries: false };
+async function readSettings(c) {
+  const { data, error } = await c.from('app_settings').select('key,value');
+  if (error) return { ...DEFAULT_SETTINGS };
+  const v = Object.fromEntries(data.map((r) => [r.key, r.value]));
+  return { showSalaries: v.show_salaries === true };
+}
 
 async function loadProfile() {
   const c = await sb();
@@ -100,6 +118,21 @@ export const supabaseStore = {
     if (!clean) throw new Error('กรุณาระบุชื่อฝ่าย');
     const { error } = await c.from('divisions').insert({ name: clean });
     if (error) throw new Error(error.code === '23505' ? `มีฝ่ายชื่อ "${clean}" อยู่แล้ว` : error.message);
+  },
+  async renameDivision(id, name) {
+    const c = await sb();
+    const clean = (name || '').trim();
+    if (!clean) throw new Error('กรุณาระบุชื่อฝ่าย');
+    const { data, error } = await c.from('divisions').update({ name: clean }).eq('id', id).select('id');
+    if (error) throw new Error(error.code === '23505' ? `มีฝ่ายชื่อ "${clean}" อยู่แล้ว` : error.message);
+    if (!data.length) throw new Error('ไม่พบฝ่ายนี้ หรือไม่มีสิทธิ์แก้ไข');
+  },
+  // The units foreign key stops a ฝ่าย that still has แผนก from being deleted.
+  async deleteDivision(id) {
+    const c = await sb();
+    const { data, error } = await c.from('divisions').delete().eq('id', id).select('id');
+    if (error) throw new Error(error.code === '23503' ? 'ลบไม่ได้ เพราะฝ่ายนี้ยังมีแผนกอยู่' : error.message);
+    if (!data.length) throw new Error('ลบไม่สำเร็จ กรุณารัน supabase/007_salary_visibility.sql ก่อน');
   },
   // Creates the unit, its login account and its profile in one server function.
   async addUnit({ code, divisionId, password }) {
@@ -148,16 +181,34 @@ export const supabaseStore = {
       check(await c.from('candidates').select('*')).forEach(remember);
     } else {
       // Look back a little so a write committed just after the last load is not missed.
-      const since = new Date(new Date(cache.since).getTime() - SYNC_OVERLAP_MS).toISOString();
       const [ids, changed] = await Promise.all([
         c.from('candidates').select('id'),
-        c.from('candidates').select('*').gt('updated_at', since)
+        c.from('candidates').select('*').gt('updated_at', sinceWithOverlap(cache.since))
       ]);
       const visible = new Set(check(ids).map((r) => r.id));
       for (const id of cache.rows.keys()) if (!visible.has(id)) cache.rows.delete(id);
       check(changed).forEach(remember);
     }
-    return [...cache.rows.values()].sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
+    // Salaries: the server returns none to a unit while HRS keeps them hidden.
+    const { showSalaries } = await readSettings(c);
+    if (isAdmin() || showSalaries) {
+      let q = c.from('candidate_salaries').select('candidate_id,salary_current,salary_expected,updated_at');
+      if (cache.salSince) q = q.gt('updated_at', sinceWithOverlap(cache.salSince));
+      const { data, error } = await q;
+      if (!error) data.forEach(rememberSalary);
+    } else {
+      forgetSalaries();
+    }
+    const none = { salaryCurrent: null, salaryExpected: null };
+    return [...cache.rows.values()]
+      .map((r) => ({ ...r, ...(cache.sal.get(r.id) || none) }))
+      .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
+  },
+
+  async getSettings() { return readSettings(await sb()); },
+  async setShowSalaries(on) {
+    const c = await sb();
+    check(await c.from('app_settings').update({ value: !!on }).eq('key', 'show_salaries').select().single());
   },
 
   async pick(id) { const c = await sb(); return fromRow(check(await c.rpc('pjt_pick', { p_id: id }))); },
@@ -200,12 +251,14 @@ export const supabaseStore = {
     const q = isNew ? c.from('candidates').insert(toRow(record)) : c.from('candidates').update(toRow(record)).eq('id', record.id);
     const { error } = await q;
     if (error) throw new Error(error.code === '23505' ? `Candidate ID ${record.id} มีอยู่แล้ว` : error.message);
+    check(await c.from('candidate_salaries').upsert(toSalaryRow(record), { onConflict: 'candidate_id' }));
     return record;
   },
   async deleteCandidate(id) { const c = await sb(); check(await c.from('candidates').delete().eq('id', id)); },
   async importCandidates(records) {
     const c = await sb();
     check(await c.from('candidates').upsert(records.map(toRow), { onConflict: 'id' }));
+    check(await c.from('candidate_salaries').upsert(records.map(toSalaryRow), { onConflict: 'candidate_id' }));
     return records.length;
   },
   async listUsers() {

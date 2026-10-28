@@ -12,8 +12,12 @@ const COLORS = [
 ];
 const REC_SCORE = { 'Strongly Recommend': 100, Recommend: 75, Consider: 50, Review: 25 };
 
-// Each axis scores 0–100. Salary axes are relative to the whole list passed in.
-function dimensions(all) {
+// Each axis scores 0–100. Salary axes are relative to the whole list passed in,
+// and are left out when salaries are hidden from this account.
+function dimensions(all, salaries) {
+  return salaries ? allDimensions(all) : allDimensions(all).filter((d) => d.key !== 'cost' && d.key !== 'raise');
+}
+function allDimensions(all) {
   const salaries = all.map((c) => c.salaryExpected).filter((v) => v != null && v !== '');
   const lo = Math.min(...salaries), hi = Math.max(...salaries);
   const clamp = (v) => Math.max(0, Math.min(100, v));
@@ -62,8 +66,8 @@ function radarSVG(dims, picked) {
 
 // all: candidates to choose from; preselected: ids to start with;
 // pos: starting position filter (a preselected candidate's position wins).
-export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
-  const dims = dimensions(all);
+export function openCompare(all, preselected = [], { pos = 'all', salaries = true } = {}) {
+  const dims = dimensions(all, salaries);
   let picked = preselected.filter((id) => all.some((c) => c.id === id)).slice(0, MAX);
   let q = '';
   const posOf = (c) => c.position || '(ไม่ระบุตำแหน่ง)';
@@ -107,7 +111,8 @@ export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
         return `<label class="compare-item${n >= 0 ? ' on' : ''}">
           <input type="checkbox" data-pick="${esc(c.id)}" ${n >= 0 ? 'checked' : ''} ${full ? 'disabled' : ''}>
           <span class="swatch" aria-hidden="true" style="background:${n >= 0 ? COLORS[n].stroke : 'transparent'}"></span>
-          <span style="display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)} ${isNew(c) ? NEW_BADGE : ''}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(c.match)}</span></span>
+          <span style="flex:1;display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(c.match)}</span></span>
+          ${isNew(c) ? NEW_BADGE : ''}
         </label>`;
       }).join('') || '<p class="muted" style="padding:12px">ไม่พบผู้สมัคร</p>';
     };

@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -37,20 +37,21 @@ const PERMS = [
   ['นัดสัมภาษณ์', 'จัดนัด / ยืนยันนัด + ส่งลิงก์', YES, 'ส่งคำขอนัด', PART],
   ['ปฏิทินสัมภาษณ์', 'ทุกแผนก', YES, 'เฉพาะแผนกตนเอง', PART],
   ['เปรียบเทียบผู้สมัคร', 'ทุก Pool', YES, 'Candidate Pool + Pool ตนเอง', PART],
+  ['ดูเงินเดือนผู้สมัคร', 'ได้เสมอ', YES, `ตามที่ ${HRS} ตั้งค่า (เริ่มต้น: ไม่เห็น)`, PART],
   ['เพิ่ม / แก้ไข / นำเข้าข้อมูลผู้สมัคร', 'ได้', YES, 'ไม่ได้', NO],
-  ['จัดการบัญชีผู้ใช้และรหัสผ่าน', 'ได้', YES, 'ไม่ได้', NO]
+  ['จัดการฝ่าย แผนก บัญชีผู้ใช้และรหัสผ่าน', 'ได้', YES, 'ไม่ได้', NO]
 ];
 
 export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   const st = {
-    tab: 'overview', list: [], users: [], notifs: [], loc: 'all', q: '', loading: true, error: '',
+    tab: 'overview', list: [], users: [], notifs: [], settings: { showSalaries: false }, loc: 'all', q: '', loading: true, error: '',
     animate: true, month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
     try {
-      const [list, users] = await Promise.all([store.listCandidates(), store.listUsers()]);
-      st.list = list; st.users = users; st.error = '';
+      const [list, users, settings] = await Promise.all([store.listCandidates(), store.listUsers(), store.getSettings()]);
+      st.list = list; st.users = users; st.settings = settings; st.error = '';
     } catch (e) { st.error = errorMessage(e); }
     try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
@@ -152,8 +153,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
             return `<tr data-row>
-              <td class="mono" style="font-weight:600">${esc(c.id)}</td>
-              <td><strong style="font-weight:600">${esc(c.name)}</strong> ${isNew(c) ? NEW_BADGE : ''}</td>
+              <td class="mono" style="font-weight:600">${esc(c.id)}${isNew(c) ? `<span class="new-cell">${NEW_BADGE}</span>` : ''}</td>
+              <td><strong style="font-weight:600">${esc(c.name)}</strong></td>
               <td>${esc(c.position || '—')}</td>
               <td style="font-weight:700">${pct(c.match)}</td>
               <td><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
@@ -164,7 +165,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
                 ? `<button type="button" class="pill" data-detail="${esc(c.id)}" style="border:0;cursor:pointer;background:${ist.bg};color:${ist.fg}">${esc(ist.label)}</button>`
                 : `<button type="button" class="btn btn-sm" data-interview="${esc(c.id)}">${ICONS.calendar} จัดนัด</button>`}</td>
               <td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span>
-                ${holdLeft(c) ? `<span class="hold-mini${holdLeft(c).urgent ? ' urgent' : ''}">เหลือ ${esc(holdLeft(c).text)}</span>` : ''}</td>
+                ${holdLeft(c) ? `<span class="hold-mini${holdLeft(c).urgent ? ' urgent' : ''}">เด้งกลับใน ${esc(holdLeft(c).text)}</span>` : ''}</td>
               <td><label class="sr-only" for="mv-${esc(c.id)}">ย้าย ${esc(c.id)}</label>
                 <select id="mv-${esc(c.id)}" class="table-select" data-move="${esc(c.id)}">
                   <option value="">เลือก…</option>
@@ -180,7 +181,17 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
 
   function users() {
     return `
-    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เพิ่มฝ่ายและแผนกใหม่ (พร้อมรหัสผ่าน) เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี และตั้งรหัสผ่านใหม่</p></div>
+    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เพิ่ม แก้ไข และลบฝ่าย เพิ่มแผนกใหม่ (พร้อมรหัสผ่าน) เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี ตั้งรหัสผ่านใหม่ และกำหนดข้อมูลที่แผนกมองเห็น</p></div>
+    <section class="panel" aria-labelledby="vis-title">
+      <h2 id="vis-title">ข้อมูลที่แผนกมองเห็น</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between">
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1 1 320px">
+          <strong>เงินเดือนผู้สมัคร (ปัจจุบัน / คาดหวัง)</strong>
+          <span class="muted" style="font-size:14px">${st.settings.showSalaries ? 'ทุกแผนกเห็นเงินเดือนของผู้สมัครที่ตนมองเห็น' : `ซ่อนอยู่: เห็นเฉพาะ ${esc(HRS)} ระบบไม่ส่งข้อมูลเงินเดือนไปที่บัญชีแผนกเลย`}</span>
+        </div>
+        <button type="button" class="switch" role="switch" aria-checked="${st.settings.showSalaries}" aria-label="แสดงเงินเดือนให้แผนกเห็น" data-show-salaries><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${st.settings.showSalaries ? 'แสดงให้แผนกเห็น' : 'ไม่แสดง'}</button>
+      </div>
+    </section>
     <section class="panel" aria-labelledby="org-title">
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
         <h2 id="org-title">ฝ่ายและแผนก</h2>
@@ -191,7 +202,11 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           <div class="org-division">
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
               <strong style="font-size:16px">${esc(d.name)} <span class="count">${d.units.length} แผนก</span></strong>
-              <button type="button" class="btn btn-sm" data-add-unit="${esc(d.id)}">${ICONS.plus} เพิ่มแผนก</button>
+              <span style="display:flex;flex-wrap:wrap;gap:8px">
+                <button type="button" class="btn btn-sm" data-add-unit="${esc(d.id)}">${ICONS.plus} เพิ่มแผนก</button>
+                <button type="button" class="btn btn-sm" data-edit-division="${esc(d.id)}">แก้ไขชื่อ</button>
+                <button type="button" class="btn btn-sm btn-danger" data-del-division="${esc(d.id)}" ${d.units.length ? 'aria-disabled="true" title="ลบได้เมื่อฝ่ายไม่มีแผนก"' : ''}>ลบฝ่าย</button>
+              </span>
             </div>
             <div class="chip-row">${d.units.length ? d.units.map((u) => `<span class="pill" style="background:var(--soft);color:var(--ink)">${esc(u)}</span>`).join('') : '<span class="muted" style="font-size:14px">ยังไม่มีแผนก — ฝ่ายนี้จะแสดงในหน้าเข้าสู่ระบบเมื่อมีแผนกแรก</span>'}</div>
           </div>`).join('')}
@@ -232,23 +247,23 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     root.innerHTML = `
     <div class="admin">
       <aside class="sidebar">
-        <div class="logo" style="padding:0 8px">${LOGO}<span>Candidate Pool<span class="logo-sub">หลังบ้าน ${esc(HRS)}</span></span></div>
+        <a href="#/admin" class="logo" style="padding:0 8px" data-home title="กลับหน้าหลักและรีเฟรช">${LOGO}<span>Candidate Pool<span class="logo-sub">หลังบ้าน ${esc(HRS)}</span></span></a>
         <nav aria-label="เมนูหลังบ้าน">
           ${TABS.map((t) => `<button type="button" data-tab="${t.key}" ${st.tab === t.key ? 'aria-current="page"' : ''}><span aria-hidden="true" style="width:12px;height:12px;border-radius:${t.shape};background:${t.dot}"></span>${t.label}${t.key === 'overview' && reqCount ? `<span class="bell-count" style="position:static;margin-left:auto">${reqCount}</span>` : ''}</button>`).join('')}
         </nav>
-        <div class="sidebar-user">
-          <span style="display:flex;align-items:center;gap:10px;font-weight:600;overflow-wrap:anywhere"><span class="avatar-sm" aria-hidden="true" style="color:#111">${esc((session.username || 'H').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
-          <button type="button" class="btn btn-sm" data-signout>${ICONS.logout} ออกจากระบบ</button>
-        </div>
       </aside>
       <main class="admin-main">
+        <div class="account-bar">
+          ${bellHTML(st.notifs)}
+          <span class="account-name"><span class="avatar-sm" aria-hidden="true">${esc((session.username || 'H').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
+          <button type="button" class="btn btn-sm btn-dark" data-signout>${ICONS.logout} ออกจากระบบ</button>
+        </div>
         <div class="page-head">
           <div style="display:flex;flex-direction:column;gap:6px" data-enter>
             <h1 style="font-size:clamp(30px,3.4vw,44px)">${esc(title)}</h1>
             <p class="muted" style="font-size:15px">${esc(sub)}</p>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-            ${bellHTML(st.notifs)}
             ${st.tab === 'pool' ? `
               <button type="button" class="btn" data-compare-open>${ICONS.radar} เปรียบเทียบ</button>
               <label class="btn" style="cursor:pointer">นำเข้าจาก Excel<input type="file" accept=".xlsx,.xlsm,.xls,.csv" data-import class="sr-only"></label>
@@ -395,23 +410,37 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     await reload();
   }
 
-  function divisionForm() {
+  // Add a ฝ่าย, or rename one when `d` is given.
+  function divisionForm(d) {
     openModal(`
-      <div class="modal-head"><h2 id="modal-title">เพิ่มฝ่ายใหม่</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
+      <div class="modal-head"><h2 id="modal-title">${d ? 'แก้ไขชื่อฝ่าย' : 'เพิ่มฝ่ายใหม่'}</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
       <form data-div class="form-grid" novalidate>
-        <div class="field span-2"><label for="dv-name">ชื่อฝ่าย</label><input id="dv-name" class="input" placeholder="เช่น ฝ่ายวิศวกรรม" required></div>
-        <p class="muted span-2" style="font-size:14px">ฝ่ายใหม่จะแสดงในหน้าเข้าสู่ระบบเมื่อเพิ่มแผนกแรกแล้ว</p>
+        <div class="field span-2"><label for="dv-name">ชื่อฝ่าย</label><input id="dv-name" class="input" placeholder="เช่น ฝ่ายวิศวกรรม" value="${esc(d ? d.name : '')}" required></div>
+        <p class="muted span-2" style="font-size:14px">${d ? 'ชื่อใหม่จะแสดงในหน้าเข้าสู่ระบบทันที บัญชีและรหัสผ่านของแผนกไม่เปลี่ยน' : 'ฝ่ายใหม่จะแสดงในหน้าเข้าสู่ระบบเมื่อเพิ่มแผนกแรกแล้ว'}</p>
         <div class="error-box span-2" data-err hidden role="alert"></div>
-        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">เพิ่มฝ่าย</button></div>
+        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">${d ? 'บันทึก' : 'เพิ่มฝ่าย'}</button></div>
       </form>`, (dlg, close) => {
       dlg.querySelector('[data-div]').onsubmit = async (e) => {
         e.preventDefault();
         const name = dlg.querySelector('#dv-name').value;
         const err = dlg.querySelector('[data-err]');
-        try { await store.addDivision(name); close(); await refreshOrg(); toast(`เพิ่ม${name.trim()}แล้ว`); }
-        catch (ex) { err.hidden = false; err.textContent = errorMessage(ex); }
+        try {
+          if (d) await store.renameDivision(d.id, name); else await store.addDivision(name);
+          close(); await refreshOrg(); toast(d ? `เปลี่ยนชื่อเป็น ${name.trim()} แล้ว` : `เพิ่ม${name.trim()}แล้ว`);
+        } catch (ex) { err.hidden = false; err.textContent = errorMessage(ex); }
       };
     });
+  }
+
+  async function deleteDivision(d) {
+    if (d.units.length) {
+      toast(`ลบ${d.name}ไม่ได้ เพราะยังมี ${d.units.length} แผนก (${d.units.join(', ')})`, { error: true });
+      return;
+    }
+    const ok = await confirmDialog({ title: `ลบ${d.name}?`, body: 'ฝ่ายนี้ยังไม่มีแผนก จึงลบได้โดยไม่กระทบบัญชีหรือผู้สมัคร', confirm: 'ลบฝ่าย', danger: true });
+    if (!ok) return;
+    try { await store.deleteDivision(d.id); await refreshOrg(); toast(`ลบ${d.name}แล้ว`); }
+    catch (ex) { toast(errorMessage(ex), { error: true }); }
   }
 
   function unitForm(divisionId) {
@@ -521,6 +550,14 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     }
     if ((el = t('[data-reset]'))) return passwordForm(st.users.find((x) => x.id === el.dataset.reset));
     if ((el = t('[data-add-division]'))) return divisionForm();
+    if ((el = t('[data-edit-division]'))) return divisionForm(DIVISIONS.find((d) => d.id === el.dataset.editDivision));
+    if ((el = t('[data-del-division]'))) return deleteDivision(DIVISIONS.find((d) => d.id === el.dataset.delDivision));
+    if ((el = t('[data-show-salaries]'))) {
+      const on = !st.settings.showSalaries;
+      anim.press(el.querySelector('.switch-knob'));
+      return run(() => store.setShowSalaries(on), on ? 'แผนกเห็นเงินเดือนผู้สมัครแล้ว' : 'ซ่อนเงินเดือนจากแผนกแล้ว');
+    }
+    if ((el = t('[data-home]'))) { e.preventDefault(); return goHome('#/admin'); }
     if ((el = t('[data-add-unit]'))) return unitForm(el.dataset.addUnit);
     if ((el = t('[data-reset-demo]'))) {
       const ok = await confirmDialog({ title: 'ล้างข้อมูลสาธิต?', body: 'ข้อมูลผู้สมัคร บัญชี และการแจ้งเตือนในเบราว์เซอร์นี้จะกลับเป็นค่าเริ่มต้น', confirm: 'ล้างข้อมูล' });

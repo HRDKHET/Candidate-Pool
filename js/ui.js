@@ -62,14 +62,31 @@ export function isNew(c) {
   return !!c.createdAt && Date.now() - new Date(c.createdAt).getTime() < CONFIG.newDays * 86400000;
 }
 export const NEW_BADGE = '<span class="new-badge">New</span>';
+// Same badge pinned to the top-left corner of a card (the card is position: relative).
+export const NEW_TAG = '<span class="new-badge new-tag">New</span>';
 
 // Time left before a picked candidate returns to the Candidate Pool, or null.
+// clock = "HH:MM:SS" counting down in hours; share = fraction of the window left.
 export function holdLeft(c) {
   if (!c.holdUntil || c.decision !== 'รอพิจารณา') return null;
   const ms = new Date(c.holdUntil).getTime() - Date.now();
-  const h = Math.max(0, Math.floor(ms / 3600000));
-  const m = Math.max(0, Math.floor((ms % 3600000) / 60000));
-  return { ms, urgent: ms < 12 * 3600000, text: ms <= 0 ? 'หมดเวลาแล้ว' : h ? `${h} ชม. ${m} นาที` : `${m} นาที` };
+  const left = Math.max(0, ms);
+  const h = Math.floor(left / 3600000);
+  const m = Math.floor((left % 3600000) / 60000);
+  const s = Math.floor((left % 60000) / 1000);
+  const two = (n) => String(n).padStart(2, '0');
+  return {
+    ms, urgent: ms < 12 * 3600000,
+    text: ms <= 0 ? 'หมดเวลาแล้ว' : h ? `${h} ชม. ${m} นาที` : `${m} นาที`,
+    clock: `${two(h)}:${two(m)}:${two(s)}`,
+    share: Math.min(1, left / (CONFIG.holdHours * 3600000))
+  };
+}
+
+// Logo: back to the start page of this account with a full reload (fresh data).
+export function goHome(hash) {
+  history.replaceState(null, '', hash);
+  location.reload();
 }
 
 const AVATARS = [

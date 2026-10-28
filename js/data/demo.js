@@ -16,6 +16,7 @@ const fresh = () => ({
   })),
   users: structuredClone(SEED_USERS),
   divisions: structuredClone(CONFIG.divisions),
+  settings: { showSalaries: false },
   notifications: [],
   nextNotif: 1
 });
@@ -25,6 +26,7 @@ function load() {
     if (raw) {
       const d = JSON.parse(raw);
       if (!d.divisions) d.divisions = structuredClone(CONFIG.divisions);
+      if (!d.settings) d.settings = { showSalaries: false };
       return d;
     }
   } catch (e) { /* storage blocked: fall through to fresh data */ }
@@ -80,6 +82,24 @@ export const demoStore = {
     db.divisions.push({ id: 'd' + Date.now(), name: clean, units: [] });
     save();
   },
+  async renameDivision(id, name) {
+    requireSession('admin');
+    const clean = (name || '').trim();
+    if (!clean) throw new Error('กรุณาระบุชื่อฝ่าย');
+    if (db.divisions.some((d) => d.name === clean && d.id !== id)) throw new Error(`มีฝ่ายชื่อ "${clean}" อยู่แล้ว`);
+    const d = db.divisions.find((x) => x.id === id);
+    if (!d) throw new Error('ไม่พบฝ่ายนี้');
+    d.name = clean;
+    save();
+  },
+  async deleteDivision(id) {
+    requireSession('admin');
+    const d = db.divisions.find((x) => x.id === id);
+    if (!d) throw new Error('ไม่พบฝ่ายนี้');
+    if (d.units.length) throw new Error('ลบไม่ได้ เพราะฝ่ายนี้ยังมีแผนกอยู่');
+    db.divisions = db.divisions.filter((x) => x.id !== id);
+    save();
+  },
   async addUnit({ code, divisionId, password }) {
     requireSession('admin');
     const v = rules.validateUnitCode(code);
@@ -122,8 +142,12 @@ export const demoStore = {
     });
     const all = db.candidates.slice().sort((a, b) => (b.match ?? 0) - (a.match ?? 0));
     if (s.role === 'admin') return all;
-    return all.filter((c) => c.location === POOL || c.location === s.unit);
+    const hide = !db.settings.showSalaries;
+    return all.filter((c) => c.location === POOL || c.location === s.unit)
+      .map((c) => (hide ? { ...c, salaryCurrent: null, salaryExpected: null } : c));
   },
+  async getSettings() { return { ...db.settings }; },
+  async setShowSalaries(on) { requireSession('admin'); db.settings.showSalaries = !!on; save(); },
 
   async pick(id) { const s = requireSession('pjt'); return put(rules.pjtPick(find(id), s.unit)); },
   async returnToPool(id) {
