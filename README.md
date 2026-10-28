@@ -65,7 +65,8 @@ npx serve .
    และ `supabase/004_hold_and_new.sql` (กำหนดเวลาพิจารณา 72 ชม. + ป้าย New)
    และ `supabase/005_divisions.sql` (HRS เพิ่มฝ่าย/แผนกและตั้งรหัสผ่านได้จากหน้า ผู้ใช้และสิทธิ์)
    และ `supabase/006_safe_links.sql` (ฐานข้อมูลรับเฉพาะลิงก์ CV / ลิงก์สัมภาษณ์ที่ขึ้นต้นด้วย http(s)://)
-   และ `supabase/007_salary_visibility.sql` (HRS เลือกได้ว่าแผนกเห็นเงินเดือนหรือไม่ เริ่มต้นไม่เห็น + แก้ไข/ลบฝ่าย)
+   และ `supabase/007_salary_visibility.sql` (แยกเงินเดือนออกจากข้อมูลผู้สมัคร + แก้ไข/ลบฝ่าย)
+   และ `supabase/008_units_and_salary_per_candidate.sql` (แก้ไข/ลบแผนก + HRS เปิดให้แผนกเห็นเงินเดือนเป็นรายคน เริ่มต้นไม่เห็น)
 6. **Project Settings › API Keys**: คัดลอก Project URL และ publishable key ใส่ใน `js/config.js` แล้วเปลี่ยน `mode: 'supabase'`
    (anon key ออกแบบมาให้เปิดเผยได้ ความปลอดภัยมาจาก row-level security แต่ **ห้ามใส่ `service_role` key เด็ดขาด**)
 7. เข้าสู่ระบบด้วยบัญชี Admin › Candidate Pool › **นำเข้าจาก Excel** แล้วเลือกไฟล์ `.xlsm` เดิม

@@ -37,21 +37,21 @@ const PERMS = [
   ['นัดสัมภาษณ์', 'จัดนัด / ยืนยันนัด + ส่งลิงก์', YES, 'ส่งคำขอนัด', PART],
   ['ปฏิทินสัมภาษณ์', 'ทุกแผนก', YES, 'เฉพาะแผนกตนเอง', PART],
   ['เปรียบเทียบผู้สมัคร', 'ทุก Pool', YES, 'Candidate Pool + Pool ตนเอง', PART],
-  ['ดูเงินเดือนผู้สมัคร', 'ได้เสมอ', YES, `ตามที่ ${HRS} ตั้งค่า (เริ่มต้น: ไม่เห็น)`, PART],
+  ['ดูเงินเดือนผู้สมัคร', 'ได้เสมอ', YES, `เฉพาะรายที่ ${HRS} เปิดให้เห็น (เริ่มต้น: ไม่เห็น)`, PART],
   ['เพิ่ม / แก้ไข / นำเข้าข้อมูลผู้สมัคร', 'ได้', YES, 'ไม่ได้', NO],
   ['จัดการฝ่าย แผนก บัญชีผู้ใช้และรหัสผ่าน', 'ได้', YES, 'ไม่ได้', NO]
 ];
 
 export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   const st = {
-    tab: 'overview', list: [], users: [], notifs: [], settings: { showSalaries: false }, loc: 'all', q: '', loading: true, error: '',
+    tab: 'overview', list: [], users: [], notifs: [], loc: 'all', q: '', loading: true, error: '',
     animate: true, month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
     try {
-      const [list, users, settings] = await Promise.all([store.listCandidates(), store.listUsers(), store.getSettings()]);
-      st.list = list; st.users = users; st.settings = settings; st.error = '';
+      const [list, users] = await Promise.all([store.listCandidates(), store.listUsers()]);
+      st.list = list; st.users = users; st.error = '';
     } catch (e) { st.error = errorMessage(e); }
     try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
@@ -145,10 +145,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     </div>
     ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af' })}
     <div class="table-wrap">
-      <table style="min-width:1080px">
-        <thead><tr><th scope="col">ID</th><th scope="col">ชื่อ-นามสกุล</th><th scope="col">ตำแหน่ง</th><th scope="col">HR Match</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ส่งเข้า Pool / ดึงกลับ</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
+      <table style="min-width:1200px">
+        <thead><tr><th scope="col">ID</th><th scope="col">ชื่อ-นามสกุล</th><th scope="col">ตำแหน่ง</th><th scope="col">HR Match</th><th scope="col">แผนกเห็นเงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ส่งเข้า Pool / ดึงกลับ</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
         <tbody>
-          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="9">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
+          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="10">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
@@ -157,6 +157,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <td><strong style="font-weight:600">${esc(c.name)}</strong></td>
               <td>${esc(c.position || '—')}</td>
               <td style="font-weight:700">${pct(c.match)}</td>
+              <td><button type="button" class="switch" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${c.showSalary ? 'แสดง' : 'ไม่แสดง'}</button></td>
               <td><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
                 <select id="dec-${esc(c.id)}" class="table-select" data-setdec="${esc(c.id)}" style="background:${ds.bg};color:${ds.fg};border-color:transparent">
                   ${DECISIONS.map((d) => `<option value="${esc(d)}" ${d === c.decision ? 'selected' : ''}>${esc(d)}</option>`).join('')}
@@ -173,7 +174,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
                 </select></td>
               <td><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
             </tr>`;
-          }).join('')).join('') : '<tr><td colspan="9" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
+          }).join('')).join('') : '<tr><td colspan="10" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
         </tbody>
       </table>
     </div>`;
@@ -181,17 +182,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
 
   function users() {
     return `
-    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เพิ่ม แก้ไข และลบฝ่าย เพิ่มแผนกใหม่ (พร้อมรหัสผ่าน) เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี ตั้งรหัสผ่านใหม่ และกำหนดข้อมูลที่แผนกมองเห็น</p></div>
-    <section class="panel" aria-labelledby="vis-title">
-      <h2 id="vis-title">ข้อมูลที่แผนกมองเห็น</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between">
-        <div style="display:flex;flex-direction:column;gap:4px;flex:1 1 320px">
-          <strong>เงินเดือนผู้สมัคร (ปัจจุบัน / คาดหวัง)</strong>
-          <span class="muted" style="font-size:14px">${st.settings.showSalaries ? 'ทุกแผนกเห็นเงินเดือนของผู้สมัครที่ตนมองเห็น' : `ซ่อนอยู่: เห็นเฉพาะ ${esc(HRS)} ระบบไม่ส่งข้อมูลเงินเดือนไปที่บัญชีแผนกเลย`}</span>
-        </div>
-        <button type="button" class="switch" role="switch" aria-checked="${st.settings.showSalaries}" aria-label="แสดงเงินเดือนให้แผนกเห็น" data-show-salaries><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>${st.settings.showSalaries ? 'แสดงให้แผนกเห็น' : 'ไม่แสดง'}</button>
-      </div>
-    </section>
+    <div class="info-box">${ICONS.info}<p>ผู้ใช้เลือกฝ่าย แผนก แล้วใส่รหัสผ่านเพื่อเข้าระบบ หน้านี้ใช้เพิ่ม แก้ไข และลบฝ่ายและแผนก (แผนกใหม่ต้องตั้งรหัสผ่าน) เปิด/ปิดบัญชี ระบุชื่อผู้ถือบัญชี และตั้งรหัสผ่านใหม่ ส่วนการให้แผนกเห็นเงินเดือน ตั้งรายคนได้ที่หน้า ผู้สมัครทั้งหมด</p></div>
     <section class="panel" aria-labelledby="org-title">
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
         <h2 id="org-title">ฝ่ายและแผนก</h2>
@@ -208,7 +199,16 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
                 <button type="button" class="btn btn-sm btn-danger" data-del-division="${esc(d.id)}" ${d.units.length ? 'aria-disabled="true" title="ลบได้เมื่อฝ่ายไม่มีแผนก"' : ''}>ลบฝ่าย</button>
               </span>
             </div>
-            <div class="chip-row">${d.units.length ? d.units.map((u) => `<span class="pill" style="background:var(--soft);color:var(--ink)">${esc(u)}</span>`).join('') : '<span class="muted" style="font-size:14px">ยังไม่มีแผนก — ฝ่ายนี้จะแสดงในหน้าเข้าสู่ระบบเมื่อมีแผนกแรก</span>'}</div>
+            ${d.units.length ? `<ul class="unit-list">${d.units.map((u) => `
+              <li class="unit-item">
+                <span class="mono" style="font-weight:700">${esc(u)}</span>
+                <span class="muted" style="font-size:13px">${st.list.filter((c) => c.location === u).length} คนใน Pool</span>
+                <span style="margin-left:auto;display:flex;gap:6px">
+                  <button type="button" class="btn btn-sm" data-edit-unit="${esc(u)}" aria-label="แก้ไขแผนก ${esc(u)}">แก้ไข</button>
+                  <button type="button" class="btn btn-sm btn-danger" data-del-unit="${esc(u)}" aria-label="ลบแผนก ${esc(u)}">ลบ</button>
+                </span>
+              </li>`).join('')}</ul>`
+              : '<span class="muted" style="font-size:14px">ยังไม่มีแผนก — ฝ่ายนี้จะแสดงในหน้าเข้าสู่ระบบเมื่อมีแผนกแรก</span>'}
           </div>`).join('')}
       </div>
     </section>
@@ -327,6 +327,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('cvUrl', 'ลิงก์ Resume / CV', v.cvUrl, 'url')}
         ${f('salaryCurrent', 'เงินเดือนปัจจุบัน', v.salaryCurrent, 'number')}
         ${f('salaryExpected', 'เงินเดือนคาดหวัง', v.salaryExpected, 'number')}
+        <label class="span-2" style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;min-height:44px"><input type="checkbox" name="showSalary" ${v.showSalary ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--violet)">ให้แผนกเห็นเงินเดือนของผู้สมัครรายนี้</label>
         ${f('match', 'HR Match % (0–100)', v.match == null ? '' : Math.round(v.match * 100), 'number')}
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
         <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก HR Match</option>${RECOMMENDATIONS.map((r) => `<option ${r === v.recommendation ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
@@ -353,6 +354,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           age: n(d.age), experience: n(d.experience), salaryCurrent: n(d.salaryCurrent), salaryExpected: n(d.salaryExpected),
           match: match == null ? null : Math.max(0, Math.min(100, match)) / 100,
           prescreenDate: d.prescreenDate || null,
+          showSalary: form.elements.showSalary.checked,
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
         };
         if (!rec.id || !rec.name) { err.hidden = false; err.textContent = 'ต้องระบุ Candidate ID และชื่อ-นามสกุล'; return; }
@@ -440,6 +442,43 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     const ok = await confirmDialog({ title: `ลบ${d.name}?`, body: 'ฝ่ายนี้ยังไม่มีแผนก จึงลบได้โดยไม่กระทบบัญชีหรือผู้สมัคร', confirm: 'ลบฝ่าย', danger: true });
     if (!ok) return;
     try { await store.deleteDivision(d.id); await refreshOrg(); toast(`ลบ${d.name}แล้ว`); }
+    catch (ex) { toast(errorMessage(ex), { error: true }); }
+  }
+
+  // Move a แผนก to another ฝ่าย and/or change its code.
+  function unitEditForm(code) {
+    const current = DIVISIONS.find((d) => d.units.includes(code));
+    openModal(`
+      <div class="modal-head"><h2 id="modal-title">แก้ไขแผนก ${esc(code)}</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
+      <form data-unit-edit class="form-grid" novalidate>
+        <div class="field"><label for="ue-div">ฝ่าย</label><select id="ue-div" class="input">${DIVISIONS.map((d) => `<option value="${esc(d.id)}" ${current && d.id === current.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="ue-code">รหัสแผนก</label><input id="ue-code" class="input mono" value="${esc(code)}" autocomplete="off" style="text-transform:uppercase" required></div>
+        <div class="warn-box span-2" style="font-size:14px">ถ้าเปลี่ยนรหัส ชื่อบัญชีเข้าสู่ระบบและชื่อ Pool จะเปลี่ยนตาม รหัสผ่านเดิมยังใช้ได้ ผู้สมัคร นัดสัมภาษณ์ และเวลา 72 ชม. ที่นับอยู่ย้ายไปด้วยทั้งหมด คนที่ล็อกอินแผนกนี้อยู่ต้องออกแล้วเข้าใหม่</div>
+        <div class="error-box span-2" data-err hidden role="alert"></div>
+        <div class="modal-actions span-2"><button type="button" class="btn" data-close>ยกเลิก</button><button type="submit" class="btn btn-dark">บันทึก</button></div>
+      </form>`, (dlg, close) => {
+      dlg.querySelector('[data-unit-edit]').onsubmit = async (e) => {
+        e.preventDefault();
+        const err = dlg.querySelector('[data-err]');
+        const btn = e.target.querySelector('[type=submit]');
+        btn.disabled = true;
+        try {
+          const v = await store.updateUnit({ code, newCode: dlg.querySelector('#ue-code').value, divisionId: dlg.querySelector('#ue-div').value });
+          close(); await refreshOrg(); toast(v === code ? `บันทึกแผนก ${code} แล้ว` : `เปลี่ยน ${code} เป็น ${v} แล้ว`);
+        } catch (ex) { btn.disabled = false; err.hidden = false; err.textContent = errorMessage(ex); }
+      };
+    });
+  }
+
+  async function deleteUnit(code) {
+    const n = st.list.filter((c) => c.location === code).length;
+    const ok = await confirmDialog({
+      title: `ลบแผนก ${code}?`,
+      body: `บัญชีเข้าสู่ระบบ ${code.toLowerCase()} จะถูกลบ${n ? ` และผู้สมัคร ${n} คนใน Pool นี้จะกลับเข้า Candidate Pool (การตัดสินใจและนัดสัมภาษณ์ถูกล้าง)` : ''} ย้อนกลับไม่ได้`,
+      confirm: 'ลบแผนก', danger: true
+    });
+    if (!ok) return;
+    try { const back = await store.deleteUnit(code); await refreshOrg(); toast(`ลบแผนก ${code} แล้ว${back ? ` · คืนผู้สมัคร ${back} คนเข้า Candidate Pool` : ''}`); }
     catch (ex) { toast(errorMessage(ex), { error: true }); }
   }
 
@@ -552,10 +591,13 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if ((el = t('[data-add-division]'))) return divisionForm();
     if ((el = t('[data-edit-division]'))) return divisionForm(DIVISIONS.find((d) => d.id === el.dataset.editDivision));
     if ((el = t('[data-del-division]'))) return deleteDivision(DIVISIONS.find((d) => d.id === el.dataset.delDivision));
-    if ((el = t('[data-show-salaries]'))) {
-      const on = !st.settings.showSalaries;
+    if ((el = t('[data-edit-unit]'))) return unitEditForm(el.dataset.editUnit);
+    if ((el = t('[data-del-unit]'))) return deleteUnit(el.dataset.delUnit);
+    if ((el = t('[data-salary]'))) {
+      const c = byId(el.dataset.salary);
+      const on = !c.showSalary;
       anim.press(el.querySelector('.switch-knob'));
-      return run(() => store.setShowSalaries(on), on ? 'แผนกเห็นเงินเดือนผู้สมัครแล้ว' : 'ซ่อนเงินเดือนจากแผนกแล้ว');
+      return run(() => store.setShowSalary(c.id, on), on ? `แผนกเห็นเงินเดือนของ ${c.id} แล้ว` : `ซ่อนเงินเดือนของ ${c.id} แล้ว`);
     }
     if ((el = t('[data-home]'))) { e.preventDefault(); return goHome('#/admin'); }
     if ((el = t('[data-add-unit]'))) return unitForm(el.dataset.addUnit);

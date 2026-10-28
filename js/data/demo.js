@@ -16,7 +16,6 @@ const fresh = () => ({
   })),
   users: structuredClone(SEED_USERS),
   divisions: structuredClone(CONFIG.divisions),
-  settings: { showSalaries: false },
   notifications: [],
   nextNotif: 1
 });
@@ -25,9 +24,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      if (!d.divisions) d.divisions = structuredClone(CONFIG.divisions);
-      if (!d.settings) d.settings = { showSalaries: false };
-      return d;
+      if (!d.divisions) d.divisions = structuredClone(CONFIG.divisions);      return d;
     }
   } catch (e) { /* storage blocked: fall through to fresh data */ }
   return fresh();
@@ -100,6 +97,37 @@ export const demoStore = {
     db.divisions = db.divisions.filter((x) => x.id !== id);
     save();
   },
+  async updateUnit({ code, newCode, divisionId }) {
+    requireSession('admin');
+    const v = rules.validateUnitCode(newCode || code);
+    const target = db.divisions.find((x) => x.id === divisionId);
+    if (!target) throw new Error('ไม่พบฝ่ายนี้');
+    if (v !== code && db.divisions.some((d) => d.units.includes(v))) throw new Error(`มีแผนก ${v} อยู่แล้ว`);
+    db.divisions.forEach((d) => { d.units = d.units.filter((u) => u !== code); });
+    target.units.push(v);
+    if (v !== code) {
+      const swap = (x) => (x === code ? v : x);
+      db.candidates = db.candidates.map((c) => ({ ...c, location: swap(c.location), assignedBy: swap(c.assignedBy), requestedBy: swap(c.requestedBy) }));
+      db.notifications = db.notifications.map((n) => ({ ...n, recipient: swap(n.recipient) }));
+      db.users = db.users.map((u) => (u.unit === code ? { ...u, id: v.toLowerCase(), username: v.toLowerCase(), unit: v } : u));
+    }
+    save();
+    return v;
+  },
+  async deleteUnit(code) {
+    requireSession('admin');
+    let n = 0;
+    db.candidates = db.candidates.map((c) => {
+      if (c.location !== code) return c.assignedBy === code ? { ...c, assignedBy: null } : c;
+      n += 1;
+      return stamp(rules.release(c));
+    });
+    db.divisions.forEach((d) => { d.units = d.units.filter((u) => u !== code); });
+    db.users = db.users.filter((u) => u.unit !== code);
+    db.notifications = db.notifications.filter((x) => x.recipient !== code);
+    save();
+    return n;
+  },
   async addUnit({ code, divisionId, password }) {
     requireSession('admin');
     const v = rules.validateUnitCode(code);
@@ -141,13 +169,16 @@ export const demoStore = {
       put(rules.release(c));
     });
     const all = db.candidates.slice().sort((a, b) => (b.match ?? 0) - (a.match ?? 0));
-    if (s.role === 'admin') return all;
-    const hide = !db.settings.showSalaries;
+    if (s.role === 'admin') return all.map((c) => ({ showSalary: false, ...c }));
+    // Units see a salary only where HRS switched it on for that candidate.
     return all.filter((c) => c.location === POOL || c.location === s.unit)
-      .map((c) => (hide ? { ...c, salaryCurrent: null, salaryExpected: null } : c));
+      .map((c) => (c.showSalary ? c : { ...c, salaryCurrent: null, salaryExpected: null, showSalary: false }));
   },
-  async getSettings() { return { ...db.settings }; },
-  async setShowSalaries(on) { requireSession('admin'); db.settings.showSalaries = !!on; save(); },
+  async setShowSalary(id, on) {
+    requireSession('admin');
+    db.candidates = db.candidates.map((x) => (x.id === id ? { ...x, showSalary: !!on } : x));
+    save();
+  },
 
   async pick(id) { const s = requireSession('pjt'); return put(rules.pjtPick(find(id), s.unit)); },
   async returnToPool(id) {

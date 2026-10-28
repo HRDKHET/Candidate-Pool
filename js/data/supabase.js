@@ -49,8 +49,11 @@ const toRow = (c) => ({
   interview_confirmed_at: c.confirmedAt || null, interview_confirm_note: c.confirmNote || null,
   location: c.location || 'HR', assigned_by: c.assignedBy || null
 });
+// show_salary is sent only when the record carries it (the HRS form), so an Excel
+// import never changes who may see a salary.
 const toSalaryRow = (c) => ({
-  candidate_id: c.id, salary_current: c.salaryCurrent ?? null, salary_expected: c.salaryExpected ?? null
+  candidate_id: c.id, salary_current: c.salaryCurrent ?? null, salary_expected: c.salaryExpected ?? null,
+  ...(typeof c.showSalary === 'boolean' ? { show_salary: c.showSalary } : {})
 });
 const CLEAR_INTERVIEW_ROW = {
   interview_at: null, interview_mode: null, interview_status: null, interviewers: [],
@@ -70,20 +73,11 @@ function remember(r) {
   cache.since = later(cache.since, r.updated_at);
 }
 function rememberSalary(r) {
-  cache.sal.set(r.candidate_id, { salaryCurrent: r.salary_current, salaryExpected: r.salary_expected });
+  cache.sal.set(r.candidate_id, { salaryCurrent: r.salary_current, salaryExpected: r.salary_expected, showSalary: r.show_salary });
   cache.salSince = later(cache.salSince, r.updated_at);
 }
-const forgetSalaries = () => { cache.sal.clear(); cache.salSince = null; };
-const forget = () => { cache.rows.clear(); cache.since = null; forgetSalaries(); };
+const forget = () => { cache.rows.clear(); cache.since = null; cache.sal.clear(); cache.salSince = null; };
 const sinceWithOverlap = (iso) => new Date(new Date(iso).getTime() - SYNC_OVERLAP_MS).toISOString();
-
-const DEFAULT_SETTINGS = { showSalaries: false };
-async function readSettings(c) {
-  const { data, error } = await c.from('app_settings').select('key,value');
-  if (error) return { ...DEFAULT_SETTINGS };
-  const v = Object.fromEntries(data.map((r) => [r.key, r.value]));
-  return { showSalaries: v.show_salaries === true };
-}
 
 async function loadProfile() {
   const c = await sb();
@@ -133,6 +127,17 @@ export const supabaseStore = {
     const { data, error } = await c.from('divisions').delete().eq('id', id).select('id');
     if (error) throw new Error(error.code === '23503' ? 'ลบไม่ได้ เพราะฝ่ายนี้ยังมีแผนกอยู่' : error.message);
     if (!data.length) throw new Error('ลบไม่สำเร็จ กรุณารัน supabase/007_salary_visibility.sql ก่อน');
+  },
+  // Move a unit to another ฝ่าย and/or give it a new code (renames its account and pool).
+  async updateUnit({ code, newCode, divisionId }) {
+    const c = await sb();
+    const v = validateUnitCode(newCode || code);
+    return check(await c.rpc('admin_update_unit', { p_code: code, p_new_code: v, p_division: divisionId }));
+  },
+  // Returns how many candidates went back to the Candidate Pool.
+  async deleteUnit(code) {
+    const c = await sb();
+    return check(await c.rpc('admin_delete_unit', { p_code: code }));
   },
   // Creates the unit, its login account and its profile in one server function.
   async addUnit({ code, divisionId, password }) {
@@ -189,26 +194,30 @@ export const supabaseStore = {
       for (const id of cache.rows.keys()) if (!visible.has(id)) cache.rows.delete(id);
       check(changed).forEach(remember);
     }
-    // Salaries: the server returns none to a unit while HRS keeps them hidden.
-    const { showSalaries } = await readSettings(c);
-    if (isAdmin() || showSalaries) {
-      let q = c.from('candidate_salaries').select('candidate_id,salary_current,salary_expected,updated_at');
-      if (cache.salSince) q = q.gt('updated_at', sinceWithOverlap(cache.salSince));
-      const { data, error } = await q;
-      if (!error) data.forEach(rememberSalary);
-    } else {
-      forgetSalaries();
+    // Salaries: a unit receives only the rows HRS marked show_salary. The id list
+    // drops salaries HRS has hidden again since the last load.
+    const cols = 'candidate_id,salary_current,salary_expected,show_salary,updated_at';
+    const [ids, changed] = await Promise.all([
+      c.from('candidate_salaries').select('candidate_id'),
+      cache.salSince
+        ? c.from('candidate_salaries').select(cols).gt('updated_at', sinceWithOverlap(cache.salSince))
+        : c.from('candidate_salaries').select(cols)
+    ]);
+    if (!ids.error && !changed.error) {
+      const shown = new Set(ids.data.map((r) => r.candidate_id));
+      for (const id of cache.sal.keys()) if (!shown.has(id)) cache.sal.delete(id);
+      changed.data.forEach(rememberSalary);
     }
-    const none = { salaryCurrent: null, salaryExpected: null };
+    const none = { salaryCurrent: null, salaryExpected: null, showSalary: false };
     return [...cache.rows.values()]
       .map((r) => ({ ...r, ...(cache.sal.get(r.id) || none) }))
       .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
   },
 
-  async getSettings() { return readSettings(await sb()); },
-  async setShowSalaries(on) {
+  // HRS: let units see (or stop seeing) one candidate's salary.
+  async setShowSalary(id, on) {
     const c = await sb();
-    check(await c.from('app_settings').update({ value: !!on }).eq('key', 'show_salaries').select().single());
+    check(await c.from('candidate_salaries').upsert({ candidate_id: id, show_salary: !!on }, { onConflict: 'candidate_id' }));
   },
 
   async pick(id) { const c = await sb(); return fromRow(check(await c.rpc('pjt_pick', { p_id: id }))); },

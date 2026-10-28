@@ -18,15 +18,13 @@ const FILTERS = ['all', 'รอพิจารณา', 'เรียกสัม
 export function mountPjt(root, { store, session, signOut, onCleanup }) {
   const unit = session.unit;
   const st = {
-    list: [], notifs: [], settings: { showSalaries: false }, view: 'mine', filter: 'all', q: '', loading: true, error: '', animate: true,
+    list: [], notifs: [], view: 'mine', filter: 'all', q: '', loading: true, error: '', animate: true,
     month: monthStart(), f: newFilterState()
   };
 
   async function reload({ animate = false } = {}) {
-    try {
-      [st.list, st.settings] = await Promise.all([store.listCandidates(), store.getSettings()]);
-      st.error = '';
-    } catch (e) { st.error = errorMessage(e); }
+    try { st.list = await store.listCandidates(); st.error = ''; }
+    catch (e) { st.error = errorMessage(e); }
     // Listing may have released expired holds, which creates notifications.
     try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
@@ -80,7 +78,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       <span class="hold-note">ครบกำหนด ${esc(fmtDateTime(c.holdUntil))} · เลือก เรียกสัมภาษณ์ / สำรอง / ไม่พิจารณา เพื่อหยุดเวลา</span>
     </div>`;
   }
-  const showSalary = () => st.settings.showSalaries;
+  // HRS decides per candidate; the server sends no salary for the others.
+  const showSalary = (c) => !!c.showSalary;
 
   function candidateCard(c) {
     const av = avatarFor(c.id);
@@ -105,7 +104,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       <dl class="facts">
         <div><dt>บริษัทล่าสุด</dt><dd>${esc(c.company || '—')}</dd></div>
         <div><dt>การศึกษา</dt><dd>${esc(c.education || '—')}</dd></div>
-        ${showSalary() ? `
+        ${showSalary(c) ? `
         <div><dt>เงินเดือนปัจจุบัน</dt><dd>${baht(c.salaryCurrent)}</dd></div>
         <div><dt>เงินเดือนคาดหวัง</dt><dd>${baht(c.salaryExpected)}</dd></div>` : ''}
       </dl>
@@ -143,7 +142,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
           <h2>${esc(c.name)}</h2>
-          <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary() ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
+          <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary(c) ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
         </div>
         <div class="match"><strong style="font-size:26px">${pct(c.match)}</strong><span>HR Match</span></div>
       </div>
@@ -296,8 +295,9 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       return;
     }
     if ((el = t('[data-refresh]'))) { anim.press(el); return reload({ animate: true }); }
-    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos, salaries: showSalary() });
-    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare], { salaries: showSalary() });
+    // Salary axes appear only when at least one candidate's salary is shown to this unit.
+    if ((el = t('[data-compare-open]'))) return openCompare(visibleForCompare(), [], { pos: st.f.pos, salaries: visibleForCompare().some(showSalary) });
+    if ((el = t('[data-compare]'))) return openCompare(visibleForCompare(), [el.dataset.compare], { salaries: visibleForCompare().some(showSalary) });
     if ((el = t('[data-view]'))) { st.view = el.dataset.view; st.q = ''; st.animate = true; return render(); }
     if ((el = t('[data-filter]'))) { st.filter = el.dataset.filter; st.animate = true; return render(); }
     if ((el = t('[data-cal]'))) {
