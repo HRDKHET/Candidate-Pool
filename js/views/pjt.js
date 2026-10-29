@@ -2,7 +2,7 @@
 // candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, recLabel, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -79,8 +79,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
   function candidateCard(c) {
     const av = avatarFor(c.id);
     const rec = recommendationFor(c);
-    const m = c.match ?? 0;
-    const mc = matchColor(c.match);
+    const m = candScore(c) ?? 0;
+    const mc = matchColor(candScore(c));
     const recStyle = rec === 'Strongly Recommend' ? 'background:#111;color:#fff' : rec === 'Recommend' ? 'background:#E4DDFF;color:#2A1A8C' : 'background:#ECEBE7;color:#3D3C38';
     return `
     <article class="card" data-card="${esc(c.id)}">
@@ -92,7 +92,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
         </div>
-        <div class="match"><strong style="color:${mc.text}">${pct(c.match)}</strong><span>HR Match</span></div>
+        <div class="match"><strong style="color:${mc.text}">${pct(candScore(c))}</strong><span>Candidate Score</span></div>
       </div>
       ${holdBlock(c)}
       <div class="bar" aria-hidden="true"><div data-grow style="width:${Math.round(m * 100)}%;background:${mc.fill}"></div></div>
@@ -134,7 +134,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary(c) ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
         </div>
-        <div class="match"><strong style="font-size:26px;color:${matchColor(c.match).text}">${pct(c.match)}</strong><span>HR Match</span></div>
+        <div class="match"><strong style="font-size:26px;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</strong><span>Candidate Score</span></div>
       </div>
       <p class="note">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">

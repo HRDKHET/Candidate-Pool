@@ -1,7 +1,7 @@
 // Demo store: everything lives in this browser's localStorage. Passwords are not
 // checked. Use only to try the workflow — never with real candidate data.
 import { SEED_CANDIDATES, SEED_USERS } from './seed.js';
-import { POOL, UNITS, HRS, MODE_LABEL } from '../ui.js';
+import { POOL, UNITS, HRS, MODE_LABEL, candScore } from '../ui.js';
 import * as rules from './rules.js';
 import { CONFIG } from '../config.js';
 
@@ -168,7 +168,7 @@ export const demoStore = {
         `ครบ ${CONFIG.holdHours} ชม. โดยยังไม่ได้ตัดสินใจ ผู้สมัครถูกคืนเข้า Candidate Pool แล้ว`);
       put(rules.release(c));
     });
-    const all = db.candidates.slice().sort((a, b) => (b.match ?? 0) - (a.match ?? 0));
+    const all = db.candidates.slice().sort((a, b) => (candScore(b) ?? -1) - (candScore(a) ?? -1));
     if (s.role === 'admin') return all.map((c) => ({ showSalary: false, ...c }));
     // Units see a salary only where HRS switched it on for that candidate.
     return all.filter((c) => c.location === POOL || c.location === s.unit)

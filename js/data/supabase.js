@@ -4,6 +4,7 @@
 import { CONFIG, accountEmail } from '../config.js';
 import { validateInterview, validateUnitCode } from './rules.js';
 import { loadLib } from '../cdn.js';
+import { candScore } from '../ui.js';
 
 let client = null;
 let profile = null;
@@ -214,7 +215,7 @@ export const supabaseStore = {
     const none = { salaryCurrent: null, salaryExpected: null, showSalary: false };
     return [...cache.rows.values()]
       .map((r) => ({ ...r, ...(cache.sal.get(r.id) || none) }))
-      .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
+      .sort((a, b) => (candScore(b) ?? -1) - (candScore(a) ?? -1));
   },
 
   // HRS: let units see (or stop seeing) one candidate's salary.

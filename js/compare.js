@@ -1,5 +1,5 @@
 // Side-by-side candidate comparison on a radar (spider) chart, up to 4 at once.
-import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS, dimTip, dimInfo } from './ui.js';
+import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS, dimTip, dimInfo, candScore } from './ui.js';
 import * as anim from './anim.js';
 import { positionsOf } from './filters.js';
 
@@ -88,7 +88,7 @@ export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
         return `<label class="compare-item${n >= 0 ? ' on' : ''}">
           <input type="checkbox" data-pick="${esc(c.id)}" ${n >= 0 ? 'checked' : ''} ${full ? 'disabled' : ''}>
           <span class="swatch" aria-hidden="true" style="background:${n >= 0 ? COLORS[n].stroke : 'transparent'}"></span>
-          <span style="flex:1;display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(c.match)}${scoredCount(c) ? '' : ' · ยังไม่มีคะแนน'}</span></span>
+          <span style="flex:1;display:flex;flex-direction:column;min-width:0"><strong>${esc(c.name)}</strong><span class="muted" style="font-size:13px">${esc(c.id)} · ${esc(c.position || '')} · ${pct(candScore(c))}${scoredCount(c) ? '' : ' · ยังไม่มีคะแนน'}</span></span>
           ${isNew(c) ? NEW_BADGE : ''}
         </label>`;
       }).join('') || '<p class="muted" style="padding:12px">ไม่พบผู้สมัคร</p>';
@@ -117,7 +117,8 @@ export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
             <tr><th scope="row">คะแนนเฉลี่ย</th>${sel.map((c) => {
               const vals = dims.map((d) => d.score(c)).filter((v) => v != null);
               return `<td><strong>${vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '—'}</strong></td>`;
-            }).join('')}</tr></tbody>
+            }).join('')}</tr>
+            <tr><th scope="row">Candidate Score</th>${sel.map((c) => `<td><strong>${pct(candScore(c))}</strong></td>`).join('')}</tr></tbody>
           </table>
         </div>
         ${sel.some((c) => scoredCount(c) < dims.length) ? `<p class="muted" style="font-size:13px">— คือมิติที่ ${esc(HRS)} ยังไม่ให้คะแนน (แสดงที่จุดกึ่งกลางกราฟ)</p>` : ''}

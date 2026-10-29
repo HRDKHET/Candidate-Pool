@@ -2,7 +2,7 @@
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
   esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor, recLabel,
-  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, DIMENSIONS, dimInfo
+  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, candScore, scoredDims, DIMENSIONS, dimInfo
 } from './ui.js';
 
 const fact = (label, value, wide = false) =>
@@ -16,6 +16,12 @@ function salaryFacts(c, showSalary) {
     ? Math.round(((c.salaryExpected - c.salaryCurrent) / c.salaryCurrent) * 100) : null;
   return fact('เงินเดือนปัจจุบัน', baht(c.salaryCurrent)) +
     fact('เงินเดือนคาดหวัง', `${baht(c.salaryExpected)}${raise == null ? '' : ` <span class="muted" style="font-weight:500">(${raise >= 0 ? '+' : ''}${raise}%)</span>`}`);
+}
+
+function scoreBasis(c) {
+  const n = scoredDims(c);
+  if (!n) return `รอ ${esc(HRS)} ให้คะแนนรายมิติ`;
+  return n === DIMENSIONS.length ? `คำนวณจาก ${n} มิติ` : `คำนวณจาก ${n} จาก ${DIMENSIONS.length} มิติ`;
 }
 
 function scoreSection(c) {
@@ -53,7 +59,7 @@ function interviewSection(c) {
 export function openProfile(c, { actions = [], onAction, showSalary = true } = {}) {
   const av = avatarFor(c.id);
   const rec = recommendationFor(c);
-  const m = c.match ?? 0;
+  const m = candScore(c) ?? 0;
   const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
   const hold = holdLeft(c);
   const cv = safeUrl(c.cvUrl);
@@ -76,12 +82,12 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
       ${hold ? `<span class="pill" style="background:${hold.urgent ? '#FDECEA' : '#FFF6D6'};color:${hold.urgent ? '#8A1C12' : '#5C4300'}">เด้งกลับ Candidate Pool ใน ${esc(hold.text)}</span>` : ''}
     </div>
 
-    <section class="profile-match" aria-label="HR Match">
+    <section class="profile-match" aria-label="Candidate Score">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
-        <span style="font-weight:600">HR Match</span>
-        <strong style="font-size:32px;line-height:1;color:${matchColor(c.match).text}">${pct(c.match)}</strong>
+        <span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:600">Candidate Score</span><span class="muted" style="font-size:13px">${scoreBasis(c)}</span></span>
+        <strong style="font-size:32px;line-height:1;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</strong>
       </div>
-      <div class="bar" aria-hidden="true"><div style="width:${Math.round(m * 100)}%;background:${matchColor(c.match).fill}"></div></div>
+      <div class="bar" aria-hidden="true"><div style="width:${Math.round(m * 100)}%;background:${matchColor(candScore(c)).fill}"></div></div>
     </section>
 
     <section class="profile-section" aria-labelledby="pf-info">

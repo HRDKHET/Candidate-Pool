@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -84,7 +84,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     const pos = [...posMap.entries()].sort((a, b) => b[1] - a[1]);
     const maxPos = Math.max(1, ...pos.map((x) => x[1]));
     const decs = DECISIONS.map((d) => ({ d, n: L.filter((c) => c.decision === d).length }));
-    const missing = L.filter((c) => !c.education || !c.company || !c.prescreenDate || c.match == null);
+    const missing = L.filter((c) => !c.education || !c.company || !c.prescreenDate || candScore(c) == null);
 
     return `
     <section class="kpis" aria-label="ตัวเลขสรุป">
@@ -122,7 +122,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
             <span aria-hidden="true" style="width:36px;height:36px;flex:none;border-radius:36px 36px 0 36px;background:#FF7A3D"></span>
             <div style="flex:1;display:flex;flex-direction:column;gap:4px">
               <strong>${esc(c.id)} ${esc(c.name)}</strong>
-              <span>ขาด: ${[!c.education && 'การศึกษา', !c.company && 'บริษัทล่าสุด', !c.prescreenDate && 'วันที่ Prescreen', c.match == null && 'HR Match'].filter(Boolean).join(', ')}</span>
+              <span>ขาด: ${[!c.education && 'การศึกษา', !c.company && 'บริษัทล่าสุด', !c.prescreenDate && 'วันที่ Prescreen', candScore(c) == null && 'คะแนนรายมิติ'].filter(Boolean).join(', ')}</span>
             </div>
             <button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button>
           </div>`).join('') + (missing.length > 6 ? `<p class="muted">และอีก ${missing.length - 6} รายการ</p>` : '')
@@ -147,7 +147,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af', dirty: !!st.q || st.loc !== 'all' })}
     <div class="table-wrap pool-wrap">
       <table class="pool-table">
-        <thead><tr><th scope="col">ผู้สมัคร</th><th scope="col">HR Match</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
+        <thead><tr><th scope="col">ผู้สมัคร</th><th scope="col">Candidate Score</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
         <tbody>
           ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="8">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
@@ -159,7 +159,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
                 <button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button>
                 <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''}</span>
               </td>
-              <td data-label="HR Match" style="font-weight:700;color:${matchColor(c.match).text}">${pct(c.match)}</td>
+              <td data-label="Candidate Score" style="font-weight:700;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</td>
               <td data-label="แผนกเห็นเงินเดือน"><button type="button" class="switch switch-sm" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" title="${c.showSalary ? 'แผนกเห็นเงินเดือน' : 'แผนกไม่เห็นเงินเดือน'}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="switch-text">${c.showSalary ? 'แสดง' : 'ซ่อน'}</span></button></td>
               <td data-label="Executive Decision"><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
                 <select id="dec-${esc(c.id)}" class="table-select" data-setdec="${esc(c.id)}" style="background:${ds.bg};color:${ds.fg};border-color:transparent">
@@ -331,13 +331,12 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('salaryCurrent', 'เงินเดือนปัจจุบัน', v.salaryCurrent, 'number')}
         ${f('salaryExpected', 'เงินเดือนคาดหวัง', v.salaryExpected, 'number')}
         <label class="span-2" style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;min-height:44px"><input type="checkbox" name="showSalary" ${v.showSalary ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--violet)">ให้แผนกเห็นเงินเดือนของผู้สมัครรายนี้</label>
-        ${f('match', 'HR Match % (0–100)', v.match == null ? '' : Math.round(v.match * 100), 'number')}
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
-        <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก HR Match</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
+        <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก Candidate Score</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
         <div class="field"><label for="cf-loc">อยู่ที่ Pool</label><select id="cf-loc" name="location" class="input">${LOCATIONS.map((l) => `<option value="${esc(l)}" ${l === v.location ? 'selected' : ''}>${esc(locLabel(l))}</option>`).join('')}</select></div>
         <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="3">${esc(v.hrNote || '')}</textarea></div>
         <fieldset class="span-2 score-set">
-          <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้ในกราฟเปรียบเทียบ</legend>
+          <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้คำนวณ Candidate Score และกราฟเปรียบเทียบ</legend>
           ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
         </fieldset>
         <div class="field span-2"><label for="cf-dec">Executive Decision</label><select id="cf-dec" name="decision" class="input">${DECISIONS.map((d) => `<option ${d === v.decision ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
@@ -356,12 +355,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         const d = Object.fromEntries(new FormData(form));
         const scores = cleanScores(Object.fromEntries(DIMENSIONS.map((dm) => [dm.key, d['s_' + dm.key]])));
         DIMENSIONS.forEach((dm) => delete d['s_' + dm.key]);
-        const match = n(d.match);
         const rec = {
           ...(c || {}), ...d,
           id: d.id.trim(), name: d.name.trim(),
           age: n(d.age), experience: n(d.experience), salaryCurrent: n(d.salaryCurrent), salaryExpected: n(d.salaryExpected),
-          match: match == null ? null : Math.max(0, Math.min(100, match)) / 100,
           prescreenDate: d.prescreenDate || null,
           showSalary: form.elements.showSalary.checked,
           scores,

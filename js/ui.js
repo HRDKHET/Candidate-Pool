@@ -131,6 +131,13 @@ export function cleanScores(s) {
   }
   return out;
 }
+// Candidate Score: the dimension scores as 0–1 (sum ÷ 5 × dimensions scored), null if none scored.
+// All seven at 5 = 100%; a partly scored candidate is judged on what HRS has scored so far.
+export function candScore(c) {
+  const v = DIMENSIONS.map((d) => (c.scores || {})[d.key]).filter((x) => Number.isInteger(x));
+  return v.length ? v.reduce((a, b) => a + b, 0) / (5 * v.length) : null;
+}
+export const scoredDims = (c) => DIMENSIONS.filter((d) => Number.isInteger((c.scores || {})[d.key])).length;
 // Accepts the English key or its Thai label; returns the English key, or '' if neither.
 export const recKey = (s) => {
   const t = String(s ?? '').trim();
@@ -208,8 +215,9 @@ export const safeUrl = (u) => (isWebUrl(u) ? String(u).trim() : '');
 
 export function recommendationFor(c) {
   if (c.recommendation) return c.recommendation;
-  if (c.match == null) return '';
-  return c.match >= 0.9 ? 'Strongly Recommend' : c.match >= 0.8 ? 'Recommend' : 'Consider';
+  const s = candScore(c);
+  if (s == null) return '';
+  return s >= 0.9 ? 'Strongly Recommend' : s >= 0.8 ? 'Recommend' : 'Consider';
 }
 
 const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -237,7 +245,7 @@ export function toLocalInput(iso) {
 export function baht(n) {
   return n == null || n === '' ? '—' : Number(n).toLocaleString('th-TH') + ' ฿';
 }
-// HR Match scale, high to low: green ≥ 80, yellow ≥ 70, orange ≥ 50, red below.
+// Candidate Score scale, high to low: green ≥ 80, yellow ≥ 70, orange ≥ 50, red below.
 // text = readable on white, fill = bar colour.
 export function matchColor(m) {
   if (m == null) return { text: '#5F5E58', fill: '#CFCDC6' };

@@ -1,6 +1,6 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, DIMENSIONS, cleanScores, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
+import { POOL, UNITS, DECISIONS, DIMENSIONS, cleanScores, candScore, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
 import { loadLib } from './cdn.js';
 
 const loadXLSX = () => loadLib('xlsx').catch(() => {
@@ -119,7 +119,7 @@ export async function exportWorkbook(candidates) {
     'Candidate ID': c.id, 'ชื่อ-นามสกุล': c.name, 'ตำแหน่ง': c.position, 'อายุ': c.age,
     'ประสบการณ์รวม (ปี)': c.experience, 'การศึกษา': c.education, 'บริษัทล่าสุด': c.company,
     'Resume/CV': c.cvUrl, 'เงินเดือนปัจจุบัน': c.salaryCurrent, 'เงินเดือนคาดหวัง': c.salaryExpected,
-    'HR Match %': c.match, 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': recLabel(c.recommendation),
+    'Candidate Score %': candScore(c) == null ? '' : Math.round(candScore(c) * 100), 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': recLabel(c.recommendation),
     'HR Highlight': c.hrNote, 'Executive Decision': c.decision,
     'วัน/เวลา ที่ต้องการนัดสัมภาษณ์': c.interviewAt ? new Date(c.interviewAt).toLocaleString('th-TH') : '',
     'สถานะนัด': c.interviewStatus === 'confirmed' ? 'ยืนยันแล้ว' : c.interviewStatus === 'requested' ? 'รอยืนยัน' : '',
