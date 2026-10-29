@@ -339,8 +339,6 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้คำนวณ Candidate Score และกราฟเปรียบเทียบ</legend>
           ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
         </fieldset>
-        <div class="field span-2"><label for="cf-dec">Executive Decision</label><select id="cf-dec" name="decision" class="input">${DECISIONS.map((d) => `<option ${d === v.decision ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
-        <p class="muted span-2" style="font-size:13px">นัดสัมภาษณ์จัดการได้จากปุ่ม "จัดนัด" ในตาราง หรือในปฏิทิน</p>
         <div class="error-box span-2" data-err hidden role="alert"></div>
         <div class="modal-actions span-2" style="justify-content:space-between">
           ${isNew ? '<span></span>' : '<button type="button" class="btn btn-danger" data-delete>ลบผู้สมัคร</button>'}
@@ -360,6 +358,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           id: d.id.trim(), name: d.name.trim(),
           age: n(d.age), experience: n(d.experience), salaryCurrent: n(d.salaryCurrent), salaryExpected: n(d.salaryExpected),
           prescreenDate: d.prescreenDate || null,
+          decision: (c && c.decision) || 'รอพิจารณา',
           showSalary: form.elements.showSalary.checked,
           scores,
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
