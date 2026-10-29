@@ -1,3 +1,4 @@
 .claude/
 *.xlsm
 *.xlsx
+!templates/candidate-import-template.xlsx
