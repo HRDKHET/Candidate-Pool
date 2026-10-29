@@ -112,6 +112,19 @@ select.input { padding-right: 8px; }
 .field-warn[hidden] { display: none; }
 .field-warn svg { width: 18px; height: 18px; flex: none; }
 .input[aria-invalid] { border-color: #E03131; box-shadow: 0 0 0 3px rgba(224,49,49,.15); }
+/* Resume import (resume.js) */
+.resume-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: rs; }
+.resume-steps > li { counter-increment: rs; position: relative; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 16px 58px; border-radius: var(--radius-md); background: var(--soft); }
+.resume-steps > li::before { content: counter(rs); position: absolute; left: 16px; top: 14px; width: 28px; height: 28px; border-radius: 50%; background: var(--violet); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+.resume-steps > li > div:first-child { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
+.resume-steps .muted { font-size: 13px; }
+.resume-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.resume-steps summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--violet); }
+.resume-prompt { margin: 8px 0 0; max-height: 220px; overflow: auto; padding: 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.resume-steps textarea { font-size: 13px; background: #fff; }
+.ai-draft ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+.ai-reason { font-size: 12px; line-height: 1.5; color: var(--muted-2); }
+@media (max-width: 560px) { .resume-steps > li { padding-left: 18px; padding-top: 52px; } }
 .info-box { display: flex; gap: 14px; align-items: flex-start; padding: 16px 20px; border-radius: 22px; background: var(--violet-soft); color: #2A1A8C; font-size: 15px; line-height: 1.6; }
 .warn-box { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: 20px; background: #FFF1E8; font-size: 14px; line-height: 1.6; }
 

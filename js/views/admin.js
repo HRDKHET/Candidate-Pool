@@ -13,6 +13,7 @@ import { calendarHTML, monthStart, shiftMonth } from '../calendar.js';
 import { openCompare } from '../compare.js';
 import { bellHTML, openNotifications, watchNotifications } from '../notify.js';
 import { openProfile } from '../profile.js';
+import { openResumeImport } from '../resume.js';
 
 const TABS = [
   { key: 'overview', label: 'ภาพรวม', dot: '#C8F169', shape: '999px' },
@@ -272,6 +273,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <a class="btn" href="templates/candidate-import-template.xlsx" download title="ไฟล์ Excel ตัวอย่างพร้อมคำอธิบายแต่ละคอลัมน์">${ICONS.doc} Template นำเข้า</a>
               <label class="btn" style="cursor:pointer">นำเข้าจาก Excel<input type="file" accept=".xlsx,.xlsm,.xls,.csv" data-import class="sr-only"></label>
               <button type="button" class="btn" data-export>ส่งออก Excel</button>
+              <button type="button" class="btn btn-violet" data-resume>${ICONS.doc} นำเข้า Resume</button>
               <button type="button" class="btn btn-dark" data-add>${ICONS.plus} เพิ่มผู้สมัคร</button>` : `<button type="button" class="btn btn-sm" data-refresh>${ICONS.refresh} รีเฟรช</button>`}
           </div>
         </div>
@@ -310,17 +312,19 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   });
 
   /* ---------- candidate form ---------- */
-  function candidateForm(c) {
+  // draft = pre-filled values from a Resume read by Claude (see resume.js); new candidates only.
+  function candidateForm(c, draft = null) {
     const isNew = !c;
-    const v = c || { decision: 'รอพิจารณา', location: POOL };
+    const v = c || { decision: 'รอพิจารณา', location: POOL, ...(draft ? draft.record : {}) };
     const f = (id, label, val, type = 'text', extra = '') =>
       `<div class="field ${extra}"><label for="cf-${id}">${label}</label><input id="cf-${id}" name="${id}" class="input" type="${type}" value="${esc(val ?? '')}" ${type === 'number' ? 'step="any"' : ''}></div>`;
     openModal(`
       <div class="modal-head">
-        <h2 id="modal-title">${isNew ? 'เพิ่มผู้สมัคร' : 'แก้ไข ' + esc(v.id)}</h2>
+        <h2 id="modal-title">${draft ? 'เพิ่มผู้สมัครจาก Resume' : isNew ? 'เพิ่มผู้สมัคร' : 'แก้ไข ' + esc(v.id)}</h2>
         <button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button>
       </div>
       <form data-cform class="form-grid" novalidate>
+        ${draft ? `<div class="info-box span-2 ai-draft">${ICONS.info}<div><strong>ข้อมูลร่างจาก Claude</strong> ตรวจและแก้ไขทุกช่องก่อนบันทึก ใส่ Candidate ID และวันที่ Prescreen เอง${draft.flags.length ? `<ul>${draft.flags.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div></div>` : ''}
         <div class="field"><label for="cf-id">Candidate ID *</label><input id="cf-id" name="id" class="input mono" value="${esc(v.id || '')}" ${isNew ? '' : 'readonly'} required></div>
         ${f('name', 'ชื่อ-นามสกุล *', v.name)}
         ${f('position', 'ตำแหน่ง', v.position)}
@@ -335,10 +339,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
         <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก Candidate Score</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
         <div class="field"><label for="cf-loc">อยู่ที่ Pool</label><select id="cf-loc" name="location" class="input">${LOCATIONS.map((l) => `<option value="${esc(l)}" ${l === v.location ? 'selected' : ''}>${esc(locLabel(l))}</option>`).join('')}</select></div>
-        <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="3">${esc(v.hrNote || '')}</textarea></div>
+        <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="${draft ? 5 : 3}">${esc(v.hrNote || '')}</textarea></div>
         <fieldset class="span-2 score-set">
           <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้คำนวณ Candidate Score และกราฟเปรียบเทียบ</legend>
-          ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`).join('')}
+          ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${draft && draft.reasons[dm.key] ? `<span class="ai-reason">Claude: ${esc(draft.reasons[dm.key])}</span>` : ''}</div>`).join('')}
         </fieldset>
         <div class="error-box span-2" data-err hidden role="alert"></div>
         <div class="modal-actions span-2" style="justify-content:space-between">
@@ -594,6 +598,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       });
     }
     if ((el = t('[data-add]'))) return candidateForm(null);
+    if ((el = t('[data-resume]'))) return openResumeImport({ positions: positionsOf(st.list), onDraft: (d) => candidateForm(null, d) });
     if ((el = t('[data-edit]'))) return candidateForm(byId(el.dataset.edit));
     if ((el = t('[data-export]'))) {
       try { const { exportWorkbook } = await import('../excel.js'); await exportWorkbook(st.list); }
