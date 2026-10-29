@@ -10,6 +10,10 @@ export const CLEARED_INTERVIEW = {
 };
 const MODES = ['online', 'onsite'];
 
+// An interview can only be booked for a time still ahead of now.
+export const PAST_MSG = 'วันและเวลานี้ผ่านไปแล้ว กรุณาเลือกวันและเวลาที่ยังไม่ถึง';
+export const isPast = (at) => new Date(at).getTime() <= Date.now();
+
 // Unit codes become account names and pool keys: upper-case letters, digits, hyphen.
 export function validateUnitCode(code) {
   const v = String(code || '').trim().toUpperCase();
@@ -25,6 +29,7 @@ export function assertDecision(decision) {
 // Interview data from the form, checked the same way for units and HRS.
 export function validateInterview(s, { requireLink = false } = {}) {
   if (!s.interviewAt) throw new Error('กรุณาระบุวันและเวลาสัมภาษณ์');
+  if (isPast(s.interviewAt)) throw new Error(PAST_MSG);
   if (!MODES.includes(s.interviewMode)) throw new Error('กรุณาเลือก Online หรือ Onsite');
   const people = (s.interviewers || []).filter((p) => p.name || p.position || p.department);
   if (!people.length) throw new Error('กรุณาระบุผู้สัมภาษณ์อย่างน้อย 1 คน');

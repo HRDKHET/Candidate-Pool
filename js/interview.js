@@ -3,6 +3,7 @@ import {
   esc, ICONS, HRS, DIVISIONS, MODE_LABEL, INTERVIEW_STATUS, toLocalInput, fmtDateTime,
   unitFullLabel, openModal, errorMessage, safeUrl
 } from './ui.js';
+import { isPast, PAST_MSG } from './data/rules.js';
 
 let rowSeq = 0;
 const personRow = (p = {}) => {
@@ -34,7 +35,7 @@ export function openInterviewForm(c, { asHrs = false, onSubmit }) {
     ${asHrs && requested ? `<div class="info-box" style="font-size:14px">${ICONS.info}<span>คำขอจาก <strong>${esc(c.requestedBy)}</strong> เมื่อ ${esc(fmtDateTime(c.requestedAt))} ตรวจสอบแล้วแก้ไขได้ก่อนยืนยัน</span></div>` : ''}
     ${!asHrs ? `<div class="info-box" style="font-size:14px">${ICONS.info}<span>คำขอจะถูกส่งไปที่ ${esc(HRS)} เพื่อดำเนินการนัดหมาย เมื่อ ${esc(HRS)} ยืนยันแล้ว คุณจะได้รับการแจ้งเตือนพร้อมลิงก์ (กรณี Online)</span></div>` : ''}
     <form data-iform class="form-grid" novalidate>
-      <div class="field span-2"><label for="i-at">วันและเวลาสัมภาษณ์</label><input id="i-at" class="input" type="datetime-local" required value="${esc(toLocalInput(c.interviewAt))}"></div>
+      <div class="field span-2"><label for="i-at">วันและเวลาสัมภาษณ์</label><input id="i-at" class="input" type="datetime-local" required min="${esc(toLocalInput(new Date().toISOString()))}" value="${esc(toLocalInput(c.interviewAt))}" aria-describedby="i-at-past"><span id="i-at-past" class="field-warn" role="alert" hidden>${ICONS.info}${esc(PAST_MSG)}</span></div>
       <div class="field span-2">
         <span class="label" id="mode-label">รูปแบบการสัมภาษณ์</span>
         <div class="seg" role="group" aria-labelledby="mode-label">
@@ -65,6 +66,18 @@ export function openInterviewForm(c, { asHrs = false, onSubmit }) {
     </form>`, (dlg, close) => {
     const list = dlg.querySelector('[data-people]');
     const err = dlg.querySelector('[data-err]');
+    const atEl = dlg.querySelector('#i-at');
+    const pastEl = dlg.querySelector('#i-at-past');
+    // Warn as soon as a past date/time is picked; the store refuses it on submit too.
+    const checkPast = () => {
+      const past = !!atEl.value && isPast(atEl.value);
+      pastEl.hidden = !past;
+      atEl.toggleAttribute('aria-invalid', past);
+      return past;
+    };
+    atEl.addEventListener('input', checkPast);
+    atEl.addEventListener('change', checkPast);
+    if (atEl.value) checkPast();
     dlg.addEventListener('click', (e) => {
       const m = e.target.closest('[data-mode]');
       if (m) {
@@ -85,7 +98,8 @@ export function openInterviewForm(c, { asHrs = false, onSubmit }) {
     });
     dlg.querySelector('[data-iform]').onsubmit = async (e) => {
       e.preventDefault();
-      const at = dlg.querySelector('#i-at').value;
+      const at = atEl.value;
+      if (checkPast()) { atEl.focus(); return; }
       const val = (sel) => (dlg.querySelector(sel) ? dlg.querySelector(sel).value.trim() : '');
       const data = {
         interviewAt: at ? new Date(at).toISOString() : null,
