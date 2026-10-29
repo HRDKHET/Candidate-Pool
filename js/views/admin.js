@@ -269,6 +269,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
             ${st.tab === 'pool' ? `
               <button type="button" class="btn" data-compare-open>${ICONS.radar} เปรียบเทียบ</button>
+              <a class="btn" href="templates/candidate-import-template.xlsx" download title="ไฟล์ Excel ตัวอย่างพร้อมคำอธิบายแต่ละคอลัมน์">${ICONS.doc} Template นำเข้า</a>
               <label class="btn" style="cursor:pointer">นำเข้าจาก Excel<input type="file" accept=".xlsx,.xlsm,.xls,.csv" data-import class="sr-only"></label>
               <button type="button" class="btn" data-export>ส่งออก Excel</button>
               <button type="button" class="btn btn-dark" data-add>${ICONS.plus} เพิ่มผู้สมัคร</button>` : `<button type="button" class="btn btn-sm" data-refresh>${ICONS.refresh} รีเฟรช</button>`}
