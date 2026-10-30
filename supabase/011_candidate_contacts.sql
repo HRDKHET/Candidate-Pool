@@ -31,6 +31,9 @@ create policy candidate_contacts_admin_delete on public.candidate_contacts for d
   using (public.is_admin());
 revoke all on public.candidate_contacts from anon;
 
+-- Make the API see the new table right away (otherwise: "Could not find the table ... in the schema cache").
+notify pgrst, 'reload schema';
+
 -- Check: one row, rls_on = true and policies = 4.
 select c.relrowsecurity as rls_on,
        (select count(*) from pg_policies p where p.tablename = 'candidate_contacts') as policies
