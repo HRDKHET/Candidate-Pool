@@ -1,48 +1,10 @@
 // Resume import through the organisation's Claude account (claude.ai): no API key, no cost per resume.
 // HRS copies a prompt, asks Claude about the resume there, and pastes Claude's JSON reply back here.
 // The reply only pre-fills the candidate form; nothing is saved until HRS reviews it and presses บันทึก.
-import { esc, ICONS, HRS, DIMENSIONS, cleanScores, openModal } from './ui.js';
+import { esc, ICONS, DIMENSIONS, cleanScores, openModal } from './ui.js';
+import { resumePrompt } from './resume-prompt.js';
 
 const CLAUDE_URL = 'https://claude.ai/new';
-
-const EXAMPLE = {
-  name: '', email: '', phone: '', position: '', age: null, experience_years: null, education: '', latest_company: '',
-  salary_current: null, salary_expected: null,
-  scores: Object.fromEntries(DIMENSIONS.map((d) => [d.key, { score: null, reason: '' }])),
-  highlight: '', questions: []
-};
-
-export function resumePrompt(positions = []) {
-  const year = new Date().getFullYear();
-  return `คุณคือผู้ช่วยฝ่ายสรรหาบุคลากร (${HRS}) อ่าน Resume ที่แนบมา แล้วสรุปข้อมูลเพื่อสร้าง Profile ผู้สมัครในระบบ Candidate Pool
-
-กฎการอ่านข้อมูล
-- ใช้เฉพาะข้อมูลที่มีใน Resume ห้ามเดา ถ้าไม่พบให้ใส่ null สำหรับตัวเลข หรือ "" สำหรับข้อความ
-- ปีใน Resume อาจเป็น พ.ศ. ให้แปลงเป็น ค.ศ. ก่อนคำนวณ (ปีนี้คือ ค.ศ. ${year})
-- age: ใส่เฉพาะเมื่อ Resume ระบุอายุหรือวันเกิด
-- experience_years: รวมระยะเวลาทำงานทั้งหมด ไม่นับช่วงที่ทำงานซ้อนกัน ทศนิยม 1 ตำแหน่ง
-- position: ${positions.length ? `เลือกจากตำแหน่งในระบบที่ตรงกับ Resume ที่สุด: ${positions.join(', ')} ถ้าไม่ตรงเลย ให้ใช้ตำแหน่งที่ผู้สมัครระบุใน Resume` : 'ตำแหน่งที่ผู้สมัครระบุใน Resume'}
-- email / phone: อีเมลและเบอร์โทรศัพท์ของผู้สมัคร ตามที่เขียนใน Resume
-- education: วุฒิสูงสุด สาขา และสถาบัน
-- latest_company: บริษัทที่ทำงานล่าสุด
-- salary_current / salary_expected: ตัวเลขบาทต่อเดือน ใส่เฉพาะเมื่อ Resume ระบุ
-
-กฎการให้คะแนน 7 มิติ (score เป็นจำนวนเต็ม 1–5)
-1 = แทบไม่มีหลักฐาน · 2 = ต่ำกว่าที่ตำแหน่งต้องการ · 3 = เหมาะกับตำแหน่ง · 4 = ดีกว่าที่ตำแหน่งต้องการ มีตัวอย่างชัด · 5 = โดดเด่น มีหลักฐานหรือตัวเลขชัดเจน
-ถ้า Resume มีข้อมูลไม่พอสำหรับมิติใด ให้ score เป็น null
-${DIMENSIONS.map((d, i) => `${i + 1}. ${d.key} — ${d.full}: ดูจาก ${d.source} · เพื่อดูว่า ${d.aim}`).join('\n')}
-- reason: 1–2 ประโยค อ้างอิงสิ่งที่พบใน Resume
-- ห้ามใช้อายุ เพศ ศาสนา สถานภาพสมรส สัญชาติ รูปถ่าย หรือสุขภาพ ในการให้คะแนนหรือแสดงความเห็น
-
-ความเห็นสำหรับแผนก
-- highlight: สรุปจุดเด่นและข้อสังเกต 2–3 ประโยค
-- questions: ประเด็นที่ควรถามเพิ่มตอนสัมภาษณ์ 2–4 ข้อ
-
-เขียนข้อความทั้งหมดเป็นภาษาไทย ตอบเป็น JSON ในกล่องโค้ดเพียงกล่องเดียวตามรูปแบบนี้ ไม่ต้องมีคำอธิบายอื่น
-\`\`\`json
-${JSON.stringify(EXAMPLE, null, 2)}
-\`\`\``;
-}
 
 const text = (v) => (v == null ? '' : String(v).trim());
 const num = (v) => {
@@ -108,7 +70,7 @@ export function openResumeImport({ positions = [], onDraft }) {
     </div>
     <ol class="resume-steps">
       <li>
-        <div><strong>คัดลอกคำสั่ง</strong><span class="muted">คำสั่งบอก Claude ว่าต้องสรุปข้อมูลช่องไหน และให้คะแนน 7 มิติตามเกณฑ์ของระบบ</span></div>
+        <div><strong>คัดลอกคำสั่ง</strong><span class="muted">คำสั่งจาก Skill "Candidate Pool Profile" บอก Claude ว่าต้องสรุปข้อมูลช่องไหน และให้คะแนน 7 มิติตามเกณฑ์ของระบบ</span></div>
         <div class="resume-actions"><button type="button" class="btn btn-dark" data-copy>${ICONS.doc} คัดลอกคำสั่ง</button><span class="muted" data-copied role="status"></span></div>
         <details><summary>ดูคำสั่ง</summary><pre class="resume-prompt">${esc(prompt)}</pre></details>
       </li>
