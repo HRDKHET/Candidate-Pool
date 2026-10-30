@@ -5,6 +5,8 @@ import { esc, ICONS, DIMENSIONS, cleanScores, openModal } from './ui.js';
 import { resumePrompt } from './resume-prompt.js';
 
 const CLAUDE_URL = 'https://claude.ai/new';
+// Opens a new chat in the Claude desktop app installed on the computer (the app registers claude://).
+const CLAUDE_APP = 'claude://claude.ai/new';
 // What HRS types in claude.ai once the "create-candidate-pool-profile" Skill is enabled on the account.
 const ASK = 'สร้าง Profile ผู้สมัครจาก Resume นี้';
 
@@ -72,11 +74,12 @@ export function openResumeImport({ positions = [], onDraft }) {
     </div>
     <ol class="resume-steps">
       <li>
-        <div><strong>เปิด Claude แนบไฟล์ Resume แล้วพิมพ์</strong><span class="muted">"${esc(ASK)}" Skill "Candidate Pool Profile" ในบัญชีองค์กรจะสรุปข้อมูลและให้คะแนน 7 มิติให้ ผู้สมัคร 1 คนต่อ 1 แชต รองรับ PDF และรูปภาพ</span></div>
+        <div><strong>เปิดแอป Claude ในเครื่อง แนบไฟล์ Resume แล้ววางข้อความ</strong><span class="muted">"${esc(ASK)}" Skill "Candidate Pool Profile" ในบัญชีองค์กรจะสรุปข้อมูลและให้คะแนน 7 มิติให้ ผู้สมัคร 1 คนต่อ 1 แชต รองรับ PDF และรูปภาพ</span></div>
         <div class="resume-actions">
-          <button type="button" class="btn btn-dark" data-open>เปิด claude.ai ↗</button>
+          <button type="button" class="btn btn-dark" data-open>เปิดแอป Claude</button>
           <span class="muted" data-copied role="status"></span>
         </div>
+        <p class="muted" style="font-size:13px">ถ้าแอปไม่เปิด (ยังไม่ได้ติดตั้ง) <a href="${CLAUDE_URL}" target="_blank" rel="noopener noreferrer" data-open-web>ใช้ claude.ai บนเว็บแทน ↗</a></p>
         <details><summary>ยังไม่ได้เปิดใช้ Skill ในบัญชี? ใช้คำสั่งเต็มแทน</summary>
           <div class="resume-actions"><button type="button" class="btn" data-copy>${ICONS.doc} คัดลอกคำสั่งเต็ม</button></div>
           <pre class="resume-prompt">${esc(prompt)}</pre>
@@ -96,10 +99,15 @@ export function openResumeImport({ positions = [], onDraft }) {
     const err = dlg.querySelector('[data-err]');
     const copied = dlg.querySelector('[data-copied]');
     // Opening Claude also copies the short request, so HRS only attaches the file and pastes.
-    dlg.querySelector('[data-open]').addEventListener('click', async () => {
-      window.open(CLAUDE_URL, '_blank', 'noopener');
+    // Copy first: the browser may ask "Open Claude?" and the page loses focus after that.
+    const askCopied = async () => {
       copied.textContent = (await copyText(ASK)) ? 'คัดลอกข้อความสั่งแล้ว วางในแชตได้เลย' : '';
+    };
+    dlg.querySelector('[data-open]').addEventListener('click', async () => {
+      await askCopied();
+      location.href = CLAUDE_APP;
     });
+    dlg.querySelector('[data-open-web]').addEventListener('click', askCopied);
     dlg.querySelector('[data-copy]').addEventListener('click', async () => {
       copied.textContent = (await copyText(prompt)) ? 'คัดลอกคำสั่งเต็มแล้ว' : 'คัดลอกไม่สำเร็จ เลือกข้อความแล้วคัดลอกเอง';
     });
