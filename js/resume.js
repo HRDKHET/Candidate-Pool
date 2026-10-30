@@ -9,7 +9,7 @@ const EXAMPLE = {
   name: '', position: '', age: null, experience_years: null, education: '', latest_company: '',
   salary_current: null, salary_expected: null,
   scores: Object.fromEntries(DIMENSIONS.map((d) => [d.key, { score: null, reason: '' }])),
-  highlight: '', questions: [], flags: []
+  highlight: '', questions: []
 };
 
 export function resumePrompt(positions = []) {
@@ -36,7 +36,6 @@ ${DIMENSIONS.map((d, i) => `${i + 1}. ${d.key} — ${d.full}: ดูจาก ${
 ความเห็นสำหรับแผนก
 - highlight: สรุปจุดเด่นและข้อสังเกต 2–3 ประโยค
 - questions: ประเด็นที่ควรถามเพิ่มตอนสัมภาษณ์ 2–4 ข้อ
-- flags: ข้อมูลที่ไม่สอดคล้องหรือขาดหาย เช่น วันที่ทำงานซ้อนกัน หรือช่วงว่างงานที่ไม่ได้อธิบาย (ถ้าไม่มีให้ใส่ [])
 
 เขียนข้อความทั้งหมดเป็นภาษาไทย ตอบเป็น JSON ในกล่องโค้ดเพียงกล่องเดียวตามรูปแบบนี้ ไม่ต้องมีคำอธิบายอื่น
 \`\`\`json
@@ -81,8 +80,7 @@ export function parseResumeReply(reply) {
       salaryCurrent: num(data.salary_current), salaryExpected: num(data.salary_expected),
       hrNote, scores
     },
-    reasons,
-    flags: list(data.flags)
+    reasons
   };
 }
 

@@ -312,6 +312,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   });
 
   /* ---------- candidate form ---------- */
+  // Must be filled before the candidate form saves (form field names).
+  const REQUIRED_FIELDS = ['id', 'name', 'position', 'education', 'company', 'prescreenDate'];
   // draft = pre-filled values from a Resume read by Claude (see resume.js); new candidates only.
   function candidateForm(c, draft = null) {
     const isNew = !c;
@@ -324,9 +326,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button>
       </div>
       <form data-cform class="form-grid" novalidate>
-        ${draft ? `<div class="info-box span-2 ai-draft">${ICONS.info}<div><strong>ข้อมูลร่างจาก Claude</strong> ตรวจและแก้ไขทุกช่องก่อนบันทึก ใส่ Candidate ID และวันที่ Prescreen เอง${draft.flags.length ? `<ul>${draft.flags.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div></div>` : ''}
-        <div class="field"><label for="cf-id">Candidate ID *</label><input id="cf-id" name="id" class="input mono" value="${esc(v.id || '')}" ${isNew ? '' : 'readonly'} required></div>
-        ${f('name', 'ชื่อ-นามสกุล *', v.name)}
+        <div class="field"><label for="cf-id">Candidate ID</label><input id="cf-id" name="id" class="input mono" value="${esc(v.id || '')}" ${isNew ? '' : 'readonly'} required></div>
+        ${f('name', 'ชื่อ-นามสกุล', v.name)}
         ${f('position', 'ตำแหน่ง', v.position)}
         ${f('age', 'อายุ', v.age, 'number')}
         ${f('experience', 'ประสบการณ์รวม (ปี)', v.experience, 'number')}
@@ -353,8 +354,29 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       const form = dlg.querySelector('[data-cform]');
       const err = dlg.querySelector('[data-err]');
       const n = (x) => (x === '' ? null : Number(x));
+      // Empty required fields get a red asterisk on a save attempt; filling one clears its mark.
+      const markMissing = () => {
+        const miss = REQUIRED_FIELDS.filter((k) => !String(form.elements[k].value || '').trim());
+        REQUIRED_FIELDS.forEach((k) => {
+          const el = form.elements[k], m = miss.includes(k);
+          el.closest('.field').classList.toggle('missing', m);
+          el.toggleAttribute('aria-invalid', m);
+        });
+        return miss;
+      };
+      form.addEventListener('input', (e) => {
+        const fld = e.target.closest('.field.missing');
+        if (fld && String(e.target.value).trim()) { fld.classList.remove('missing'); e.target.removeAttribute('aria-invalid'); }
+      });
       form.onsubmit = async (e) => {
         e.preventDefault();
+        const miss = markMissing();
+        if (miss.length) {
+          err.hidden = false; err.textContent = 'กรอกข้อมูลในช่องที่มีดอกจันสีแดงให้ครบก่อนบันทึก';
+          form.elements[miss[0]].focus();
+          return;
+        }
+        err.hidden = true;
         const d = Object.fromEntries(new FormData(form));
         const scores = cleanScores(Object.fromEntries(DIMENSIONS.map((dm) => [dm.key, d['s_' + dm.key]])));
         DIMENSIONS.forEach((dm) => delete d['s_' + dm.key]);

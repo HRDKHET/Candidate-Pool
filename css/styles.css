@@ -122,8 +122,8 @@ select.input { padding-right: 8px; }
 .resume-steps summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--violet); }
 .resume-prompt { margin: 8px 0 0; max-height: 220px; overflow: auto; padding: 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 .resume-steps textarea { font-size: 13px; background: #fff; }
-.ai-draft ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
 .ai-reason { font-size: 12px; line-height: 1.5; color: var(--muted-2); }
+.field.missing > label::after, .field.missing > span > label::after { content: " *"; color: #E03131; font-weight: 700; }
 @media (max-width: 560px) { .resume-steps > li { padding-left: 18px; padding-top: 52px; } }
 .info-box { display: flex; gap: 14px; align-items: flex-start; padding: 16px 20px; border-radius: 22px; background: var(--violet-soft); color: #2A1A8C; font-size: 15px; line-height: 1.6; }
 .warn-box { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: 20px; background: #FFF1E8; font-size: 14px; line-height: 1.6; }
