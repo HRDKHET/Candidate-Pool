@@ -416,6 +416,14 @@ export function initMenus() {
     const m = e.target;
     if (!(m instanceof HTMLDetailsElement) || !m.classList.contains('menu') || !m.open) return;
     const list = m.querySelector('.menu-list');
+    // Entrance animations leave transform: translateY(0) on rows and cards; a transformed ancestor
+    // turns position:fixed into "relative to that ancestor" and the list lands off-screen.
+    for (let a = m.parentElement; a && a !== document.body; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if (cs.transform !== 'none' || cs.filter !== 'none' || cs.willChange.includes('transform')) {
+        a.style.transform = 'none'; a.style.filter = 'none'; a.style.willChange = 'auto';
+      }
+    }
     const r = m.querySelector('summary').getBoundingClientRect();
     list.style.cssText = 'position:fixed;visibility:hidden';
     const w = list.offsetWidth, h = list.offsetHeight;
