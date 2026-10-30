@@ -138,6 +138,22 @@ export function candScore(c) {
   return v.length ? v.reduce((a, b) => a + b, 0) / (5 * v.length) : null;
 }
 export const scoredDims = (c) => DIMENSIONS.filter((d) => Number.isInteger((c.scores || {})[d.key])).length;
+// The next `count` Candidate IDs, continuing the pattern of the most recently added candidate:
+// latest C030 -> C031, C032 … (same prefix, same zero padding, after the highest number in use).
+export function nextCandidateIds(list, count = 1) {
+  const parse = (id) => { const m = /^(.*?)(\d+)$/.exec(String(id || '').trim()); return m && { prefix: m[1], digits: m[2] }; };
+  const latest = list.filter((c) => parse(c.id))
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
+  const base = latest ? parse(latest.id) : { prefix: 'C', digits: '000' };
+  let n = Math.max(0, ...list.map((c) => parse(c.id)).filter((p) => p && p.prefix === base.prefix).map((p) => Number(p.digits)));
+  const taken = new Set(list.map((c) => c.id));
+  const out = [];
+  while (out.length < count) {
+    const id = base.prefix + String(++n).padStart(base.digits.length, '0');
+    if (!taken.has(id)) out.push(id);
+  }
+  return out;
+}
 // Accepts the English key or its Thai label; returns the English key, or '' if neither.
 export const recKey = (s) => {
   const t = String(s ?? '').trim();

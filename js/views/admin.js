@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM, nextCandidateIds
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -314,7 +314,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   // draft = pre-filled values from a Resume read by Claude (see resume.js); new candidates only.
   function candidateForm(c, draft = null) {
     const isNew = !c;
-    const v = c || { decision: 'รอพิจารณา', location: POOL, ...(draft ? draft.record : {}) };
+    // A new candidate starts with the next ID in sequence (HRS may still change it).
+    const v = c || { id: nextCandidateIds(st.list)[0], decision: 'รอพิจารณา', location: POOL, ...(draft ? draft.record : {}) };
     const f = (id, label, val, type = 'text', extra = '') =>
       `<div class="field ${extra}"><label for="cf-${id}">${label}</label><input id="cf-${id}" name="${id}" class="input" type="${type}" value="${esc(val ?? '')}" ${type === 'number' ? 'step="any"' : ''}></div>`;
     openModal(`
@@ -323,7 +324,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button>
       </div>
       <form data-cform class="form-grid" novalidate>
-        <div class="field"><label for="cf-id">Candidate ID</label><input id="cf-id" name="id" class="input mono" value="${esc(v.id || '')}" ${isNew ? '' : 'readonly'} required></div>
+        <div class="field"><label for="cf-id">Candidate ID${isNew ? ' <span class="muted" style="font-weight:500">· รันอัตโนมัติ</span>' : ''}</label><input id="cf-id" name="id" class="input mono" value="${esc(v.id || '')}" ${isNew ? '' : 'readonly'} required></div>
         ${f('name', 'ชื่อ-นามสกุล', v.name)}
         ${f('position', 'ตำแหน่ง', v.position)}
         ${f('age', 'อายุ', v.age, 'number')}
@@ -550,7 +551,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     let parsed;
     try {
       const { parseWorkbook } = await import('../excel.js');
-      parsed = await parseWorkbook(file);
+      parsed = await parseWorkbook(file, st.list);
     } catch (e) { toast(errorMessage(e), { error: true }); return; }
     const existing = new Set(st.list.map((c) => c.id));
     const updates = parsed.records.filter((r) => existing.has(r.id)).length;
@@ -558,10 +559,10 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     openModal(`
       <div class="modal-head"><h2 id="modal-title">นำเข้าจาก ${esc(file.name)}</h2><button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button></div>
       ${parsed.records.length ? `
-        <p style="font-size:15px;line-height:1.7">พบผู้สมัคร <strong>${parsed.records.length}</strong> รายการ จากชีต ${parsed.sheets.map((s) => esc(s.name)).join(', ')} · เพิ่มใหม่ ${parsed.records.length - updates} · อัปเดตของเดิม ${updates}</p>
+        <p style="font-size:15px;line-height:1.7">พบผู้สมัคร <strong>${parsed.records.length}</strong> รายการ จากชีต ${parsed.sheets.map((s) => esc(s.name)).join(', ')} · เพิ่มใหม่ ${parsed.records.length - updates} · อัปเดตของเดิม ${updates}${parsed.autoIds.length ? ` · รัน Candidate ID ให้ ${parsed.autoIds.length} คน (${esc(parsed.autoIds[0])}${parsed.autoIds.length > 1 ? ` – ${esc(parsed.autoIds[parsed.autoIds.length - 1])}` : ''})` : ''}</p>
         <ul class="legend">${byLoc.map(([l, n]) => `<li><span class="dot" style="background:${locStyle(l).color}" aria-hidden="true"></span>${esc(locLabel(l))} <strong>${n}</strong></li>`).join('')}</ul>` : '<div class="error-box">ไม่พบแถวข้อมูลที่มีคอลัมน์ "Candidate ID" ในไฟล์นี้</div>'}
       ${parsed.duplicates.length ? `<div class="warn-box">พบ ID ซ้ำในไฟล์ ใช้แถวแรกที่พบและข้ามแถวที่ซ้ำ ${parsed.duplicates.length} แถว: ${esc([...new Set(parsed.duplicates)].join(', '))}</div>` : ''}
-      ${parsed.skipped ? `<div class="warn-box">ข้าม ${parsed.skipped} แถวที่ไม่มี ID หรือชื่อ</div>` : ''}
+      ${parsed.skipped ? `<div class="warn-box">ข้าม ${parsed.skipped} แถวที่ไม่มีชื่อ-นามสกุล</div>` : ''}
       <p class="muted" style="font-size:14px">ผู้สมัครที่ในไฟล์เลือก "หน่วยงาน/โครงการ" ไว้แต่ยังไม่ถูกย้าย จะถูกนำเข้าไปที่ Pool ปลายทางนั้น</p>
       <div class="modal-actions"><button type="button" class="btn" data-close>ยกเลิก</button>${parsed.records.length ? '<button type="button" class="btn btn-dark" data-ok>นำเข้า</button>' : ''}</div>`,
     (dlg, close) => {

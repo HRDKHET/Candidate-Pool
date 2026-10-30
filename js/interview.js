@@ -55,8 +55,6 @@ export function openInterviewForm(c, { asHrs = false, onSubmit }) {
         <datalist id="dep-list">${deps.map((d) => `<option value="${esc(d)}"></option>`).join('')}</datalist>
       </fieldset>
 
-      <div class="field"><label for="i-proj">ชื่อโครงการ</label><input id="i-proj" class="input" value="${esc(c.projectName || '')}"></div>
-      <div class="field"><label for="i-note">หมายเหตุ</label><input id="i-note" class="input" value="${esc(c.remark || '')}"></div>
       ${asHrs ? `<div class="field span-2"><label for="i-cnote">ข้อความถึงหน่วยงาน (แสดงในการแจ้งเตือน)</label><input id="i-cnote" class="input" value="${esc(c.confirmNote || '')}"></div>` : ''}
       <div class="error-box span-2" data-err hidden role="alert"></div>
       <div class="modal-actions span-2">
@@ -104,14 +102,16 @@ export function openInterviewForm(c, { asHrs = false, onSubmit }) {
       const data = {
         interviewAt: at ? new Date(at).toISOString() : null,
         interviewMode: mode,
-        interviewLocation: val('#i-loc'),
-        meetingLink: val('#i-link'),
+        // Online interviews have no place; onsite ones have no meeting link.
+        interviewLocation: mode === 'onsite' ? val('#i-loc') : '',
+        meetingLink: mode === 'online' ? val('#i-link') : '',
         interviewers: [...list.querySelectorAll('[data-person]')].map((row) => ({
           name: row.querySelector('[data-k=name]').value.trim(),
           position: row.querySelector('[data-k=position]').value.trim(),
           department: row.querySelector('[data-k=department]').value.trim()
         })),
-        projectName: val('#i-proj'), remark: val('#i-note'), confirmNote: val('#i-cnote')
+        // ชื่อโครงการ / หมายเหตุ are no longer asked here; keep whatever the candidate already has.
+        projectName: c.projectName || '', remark: c.remark || '', confirmNote: val('#i-cnote')
       };
       const btn = e.target.querySelector('[type=submit]');
       btn.disabled = true;
@@ -138,8 +138,8 @@ export function showInterviewDetail(c, { actions = [], onAction } = {}) {
       <div><dt>รูปแบบ</dt><dd>${esc(MODE_LABEL[c.interviewMode] || '—')}</dd></div>
       ${c.interviewMode === 'onsite' ? `<div class="span-2" style="grid-column:span 2"><dt>สถานที่</dt><dd>${esc(c.interviewLocation || '—')}</dd></div>` : ''}
       ${c.interviewMode === 'online' ? `<div style="grid-column:span 2"><dt>ลิงก์เข้าสัมภาษณ์</dt><dd>${safeUrl(c.meetingLink) ? `<a href="${esc(safeUrl(c.meetingLink))}" target="_blank" rel="noopener noreferrer">${esc(c.meetingLink)}</a>` : `<span class="muted">รอ ${esc(HRS)} ส่งลิงก์</span>`}</dd></div>` : ''}
-      <div><dt>ชื่อโครงการ</dt><dd>${esc(c.projectName || '—')}</dd></div>
-      <div><dt>หมายเหตุ</dt><dd>${esc(c.remark || '—')}</dd></div>
+      ${c.projectName ? `<div><dt>ชื่อโครงการ</dt><dd>${esc(c.projectName)}</dd></div>` : ''}
+      ${c.remark ? `<div><dt>หมายเหตุ</dt><dd>${esc(c.remark)}</dd></div>` : ''}
       ${c.confirmNote ? `<div style="grid-column:span 2"><dt>ข้อความจาก ${esc(HRS)}</dt><dd>${esc(c.confirmNote)}</dd></div>` : ''}
     </dl>
     <div style="display:flex;flex-direction:column;gap:8px">

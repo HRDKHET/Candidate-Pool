@@ -1,6 +1,6 @@
 // Import from / export to the existing Candidate Marketplace workbook layout.
 // SheetJS is loaded only when an admin imports or exports.
-import { POOL, UNITS, DECISIONS, DIMENSIONS, cleanScores, candScore, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
+import { POOL, UNITS, DECISIONS, DIMENSIONS, cleanScores, candScore, nextCandidateIds, recKey, recLabel, locLabel, interviewerText, safeUrl } from './ui.js';
 import { loadLib } from './cdn.js';
 
 const loadXLSX = () => loadLib('xlsx').catch(() => {
@@ -46,7 +46,8 @@ function locationFor(sheetName) {
   return u || null;
 }
 
-export async function parseWorkbook(file) {
+// existing: candidates already in the system, used to number rows that have no Candidate ID.
+export async function parseWorkbook(file, existing = []) {
   const XLSX = await loadXLSX();
   const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
   const meta = (wb.Workbook && wb.Workbook.Sheets) || [];
@@ -73,7 +74,7 @@ export async function parseWorkbook(file) {
       const id = String(raw.id ?? '').trim();
       const nameVal = String(raw.name ?? '').trim();
       if (!id && !nameVal) continue;
-      if (!id || !nameVal) { result.skipped++; continue; }
+      if (!nameVal) { result.skipped++; continue; }
 
       const rec = String(raw.recOrNote ?? '').trim();
       const cv = String(raw.companyOrCv ?? '').trim();
@@ -109,13 +110,19 @@ export async function parseWorkbook(file) {
         ...(hasContacts ? { email: String(raw.email ?? '').trim(), phone: phoneText(raw.phone) } : {}),
         ...(hasScores ? { scores: cleanScores(Object.fromEntries(DIMENSIONS.map((d) => [d.key, raw['score:' + d.key]]))) } : {})
       };
-      if (seen.has(id)) { result.duplicates.push(`${id} (${seen.get(id)} และ ${name})`); continue; }
-      seen.set(id, name);
+      if (id && seen.has(id)) { result.duplicates.push(`${id} (${seen.get(id)} และ ${name})`); continue; }
+      if (id) seen.set(id, name);
+
       result.records.push(record);
       count++;
     }
     result.sheets.push({ name, count });
   }
+  // Rows without a Candidate ID get the next IDs in sequence, in the order they appear in the file.
+  const auto = result.records.filter((r) => !r.id);
+  const ids = nextCandidateIds([...existing, ...result.records.filter((r) => r.id)], auto.length);
+  auto.forEach((r, i) => { r.id = ids[i]; });
+  result.autoIds = ids;
   return result;
 }
 

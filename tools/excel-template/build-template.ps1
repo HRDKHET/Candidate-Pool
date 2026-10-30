@@ -125,7 +125,7 @@ try {
     $row++
   }
   $row++
-  $heads = @('คอลัมน์', 'ต้องกรอก', 'รูปแบบ', 'คำอธิบาย', 'ตัวอย่าง (EX-001)')
+  $heads = @('คอลัมน์', 'ต้องกรอก', 'รูปแบบ', 'คำอธิบาย', 'ตัวอย่าง (แถวแรก)')
   for ($k = 0; $k -lt 5; $k++) { $hs.Cells.Item($row, $k + 1).Value2 = $heads[$k] }
   $th = $hs.Range($hs.Cells.Item($row, 1), $hs.Cells.Item($row, 5))
   $th.Interior.Color = Rgb @(17, 17, 17); $th.Font.Color = Rgb @(255, 255, 255); $th.Font.Bold = $true
