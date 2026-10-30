@@ -124,6 +124,7 @@ select.input { padding-right: 8px; }
 .resume-steps textarea { font-size: 13px; background: #fff; }
 .ai-reason { font-size: 12px; line-height: 1.5; color: var(--muted-2); }
 .hr-only { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: #FFF1E8; color: #7A2E00; font-size: 11px; font-weight: 700; vertical-align: middle; }
+.decision-pill { white-space: nowrap; }
 .pool-table tr[data-row] { cursor: pointer; }
 .pool-table tr[data-row]:hover > td { background: #FAF9F6; }
 .field.missing > label::after, .field.missing > span > label::after { content: " *"; color: #E03131; font-weight: 700; }

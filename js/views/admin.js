@@ -162,10 +162,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               </td>
               <td data-label="Candidate Score" style="font-weight:700;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</td>
               <td data-label="แผนกเห็นเงินเดือน"><button type="button" class="switch switch-sm" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" title="${c.showSalary ? 'แผนกเห็นเงินเดือน' : 'แผนกไม่เห็นเงินเดือน'}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="switch-text">${c.showSalary ? 'แสดง' : 'ซ่อน'}</span></button></td>
-              <td data-label="Executive Decision"><label class="sr-only" for="dec-${esc(c.id)}">Executive Decision ของ ${esc(c.id)}</label>
-                <select id="dec-${esc(c.id)}" class="table-select" data-setdec="${esc(c.id)}" style="background:${ds.bg};color:${ds.fg};border-color:transparent">
-                  ${DECISIONS.map((d) => `<option value="${esc(d)}" ${d === c.decision ? 'selected' : ''}>${esc(d)}</option>`).join('')}
-                </select></td>
+              <td data-label="Executive Decision"><span class="pill decision-pill" style="background:${ds.bg};color:${ds.fg}">${esc(c.decision || 'รอพิจารณา')}</span></td>
               <td data-label="นัดสัมภาษณ์">${ist
                 ? `<button type="button" class="pill" data-detail="${esc(c.id)}" style="border:0;cursor:pointer;background:${ist.bg};color:${ist.fg}">${esc(ist.label)}</button>`
                 : `<button type="button" class="btn btn-sm" data-interview="${esc(c.id)}">${ICONS.calendar} จัดนัด</button>`}</td>
@@ -692,12 +689,6 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       const back = root.querySelector('#' + el.id);
       if (back) back.focus();
       return;
-    }
-    if (el.dataset.setdec) {
-      const id = el.dataset.setdec, prev = byId(id).decision, next = el.value;
-      return run(() => store.setDecision(id, next), `เปลี่ยนสถานะ ${id} เป็น "${next}" แล้ว`, {
-        action: 'เลิกทำ', onAction: () => run(() => store.setDecision(id, prev), `คืนสถานะ ${id} แล้ว`)
-      });
     }
     if (el.dataset.move && el.value) {
       const c = byId(el.dataset.move), to = el.value;
