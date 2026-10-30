@@ -2,7 +2,7 @@
 // `actions` = [{ id, label, primary, danger }]; the popup closes before onAction runs.
 import {
   esc, ICONS, HRS, POOL, DECISION_STYLE, INTERVIEW_STATUS, MODE_LABEL, avatarFor, recommendationFor, recLabel,
-  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, candScore, scoredDims, DIMENSIONS, dimInfo
+  fmtDate, fmtDateTime, baht, pct, openModal, isNew, NEW_BADGE, holdLeft, safeUrl, locLabel, unitFullLabel, matchColor, candScore, scoredDims, DIMENSIONS, dimInfo, NOTE_FROM
 } from './ui.js';
 
 const fact = (label, value, wide = false) =>
@@ -104,8 +104,8 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
     </section>
 
     <section class="profile-section" aria-labelledby="pf-hr">
-      <h3 id="pf-hr">ความเห็น ${esc(HRS)} ${rec ? `<span class="pill" style="background:#E4DDFF;color:#2A1A8C">${esc(recLabel(rec))}</span>` : ''}</h3>
-      <p style="font-size:15px;line-height:1.7">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
+      <h3 id="pf-hr">ความเห็นจาก ${esc(NOTE_FROM)} ${rec ? `<span class="pill" style="background:#E4DDFF;color:#2A1A8C">${esc(recLabel(rec))}</span>` : ''}</h3>
+      <p style="font-size:15px;line-height:1.7;white-space:pre-line">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${NOTE_FROM}`)}</p>
       ${cv ? `<a class="btn btn-sm" style="align-self:flex-start" href="${esc(cv)}" target="_blank" rel="noopener noreferrer">${ICONS.doc} เปิด Resume / CV</a>` : '<span class="muted" style="font-size:14px">ไม่มีลิงก์ Resume / CV</span>'}
     </section>
 

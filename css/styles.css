@@ -191,6 +191,12 @@ select.input { padding-right: 8px; }
 .facts dt { color: var(--muted-2); }
 .facts dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
 .note { padding: 14px 16px; border-radius: var(--radius-md); background: var(--soft); display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.6; }
+.note-label { font-size: 12px; font-weight: 700; color: var(--muted-2); }
+.note p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Cards keep one size: one-line texts, actions pinned to the bottom. */
+.card-head h2 .name-btn, .card-head .muted, .card-id { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .facts dd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card > .card-actions, .card > .card-bottom { margin-top: auto; }
 /* Candidate name opens the profile popup. */
 .name-btn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .name-btn:hover { text-decoration: underline; text-underline-offset: 4px; }

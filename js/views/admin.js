@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -340,7 +340,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
         <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก Candidate Score</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
         <div class="field"><label for="cf-loc">อยู่ที่ Pool</label><select id="cf-loc" name="location" class="input">${LOCATIONS.map((l) => `<option value="${esc(l)}" ${l === v.location ? 'selected' : ''}>${esc(locLabel(l))}</option>`).join('')}</select></div>
-        <div class="field span-2"><label for="cf-note">ความเห็น ${esc(HRS)} (HR Highlight)</label><textarea id="cf-note" name="hrNote" class="input" rows="${draft ? 5 : 3}">${esc(v.hrNote || '')}</textarea></div>
+        <div class="field span-2"><label for="cf-note">ความเห็นจาก ${esc(NOTE_FROM)} (HR Highlight) <span class="muted" style="font-weight:500">· การ์ดแสดง 30 ตัวอักษรแรก</span></label><textarea id="cf-note" name="hrNote" class="input" rows="${draft ? 5 : 3}">${esc(v.hrNote || '')}</textarea></div>
         <fieldset class="span-2 score-set">
           <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้คำนวณ Candidate Score และกราฟเปรียบเทียบ</legend>
           ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${draft && draft.reasons[dm.key] ? `<span class="ai-reason">Claude: ${esc(draft.reasons[dm.key])}</span>` : ''}</div>`).join('')}

@@ -2,7 +2,7 @@
 // candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, recLabel, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore, clip, NOTE_FROM
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -76,6 +76,9 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
   // HRS decides per candidate; the server sends no salary for the others.
   const showSalary = (c) => !!c.showSalary;
 
+  // Card shows the first 30 characters of the comment; the profile (click the card) shows all of it.
+  const noteText = (c) => `<span class="note-label">ความเห็นจาก ${NOTE_FROM}</span><p title="${esc(c.hrNote || '')}">${esc(c.hrNote ? clip(c.hrNote, 30) : 'ยังไม่มีความเห็น')}</p>`;
+
   function candidateCard(c) {
     const av = avatarFor(c.id);
     const rec = recommendationFor(c);
@@ -105,7 +108,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       </dl>
       <div class="note">
         ${rec ? `<span class="pill" style="align-self:flex-start;${recStyle}">${esc(recLabel(rec))}</span>` : ''}
-        <p>${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
+        ${noteText(c)}
       </div>
       ${interviewBlock(c)}
       <div class="card-actions">
@@ -136,8 +139,8 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         </div>
         <div class="match"><strong style="font-size:26px;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</strong><span>Candidate Score</span></div>
       </div>
-      <p class="note">${esc(c.hrNote || `ยังไม่มีความเห็นจาก ${HRS}`)}</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="note">${noteText(c)}</div>
+      <div class="card-bottom" style="display:flex;gap:10px;flex-wrap:wrap">
         <button type="button" class="btn" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
         <button type="button" class="btn btn-dark" style="flex:1" data-pick="${esc(c.id)}"><span style="color:#C8F169;display:flex">${ICONS.plus}</span>เลือกเข้า Pool ของ ${esc(unit)}</button>
       </div>

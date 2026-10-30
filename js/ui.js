@@ -254,6 +254,15 @@ export function matchColor(m) {
   if (m >= 0.5) return { text: '#D9480F', fill: '#FD7E14' };
   return { text: '#C92A2A', fill: '#E03131' };
 }
+// Who writes the comment shown to units (hrNote).
+export const NOTE_FROM = 'Recruit';
+// First n characters of s on one line, counting a Thai letter with its vowel/tone marks as one.
+const graphemes = (s) => (typeof Intl !== 'undefined' && Intl.Segmenter
+  ? Array.from(new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(s), (g) => g.segment) : Array.from(s));
+export function clip(s, n = 30) {
+  const g = graphemes(String(s || '').replace(/\s+/g, ' ').trim());
+  return g.length > n ? g.slice(0, n).join('').trimEnd() + '…' : g.join('');
+}
 export function pct(m) {
   return m == null ? '—' : Math.round(m * 100) + '%';
 }
