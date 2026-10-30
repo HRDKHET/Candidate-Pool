@@ -15,6 +15,7 @@ const HEADERS = {
   'ประสบการณ์รวม (ปี)': 'experience', 'การศึกษา': 'education',
   'recume/cv': 'companyOrCv', 'resume/cv': 'companyOrCv', 'บริษัทล่าสุด': 'company',
   'เงินเดือนปัจจุบัน': 'salaryCurrent', 'เงินเดือนคาดหวัง': 'salaryExpected', 'hr match %': 'match',
+  'email': 'email', 'อีเมล': 'email', 'เบอร์โทรศัพท์': 'phone', 'เบอร์โทร': 'phone', 'โทรศัพท์': 'phone',
   'วันที่ precreen': 'prescreenDate', 'วันที่ prescreen': 'prescreenDate', 'วันที่รับใบสมัคร': 'prescreenDate',
   'hr recommendation': 'recOrNote', 'hr highlight': 'hrNote', 'executive decision': 'decision',
   'วัน/เวลา ที่ต้องการนัดสัมภาษณ์': 'interviewAt', 'ชื่อผู้สัมภาษณ์': 'interviewer',
@@ -23,6 +24,8 @@ const HEADERS = {
   ...Object.fromEntries(DIMENSIONS.map((d) => [scoreHeader(d).toLowerCase(), 'score:' + d.key]))
 };
 
+// A phone typed as a number loses its leading 0 in Excel (0812345678 -> 812345678): put it back.
+const phoneText = (v) => (typeof v === 'number' && /^[1-9]\d{7,8}$/.test(String(v)) ? '0' + v : String(v ?? '').trim());
 const num = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
 function excelDate(v, withTime) {
   if (v === '' || v == null) return null;
@@ -61,6 +64,8 @@ export async function parseWorkbook(file) {
     const sheetLoc = locationFor(name) || POOL;
     // Without score columns the sheet leaves existing scores alone.
     const hasScores = fields.some((f) => f && f.startsWith('score:'));
+    // Likewise, contacts are written only when the sheet has an email or phone column.
+    const hasContacts = fields.includes('email') || fields.includes('phone');
     let count = 0;
     for (const r of rows.slice(hIdx + 1)) {
       const raw = {};
@@ -101,6 +106,7 @@ export async function parseWorkbook(file) {
         projectName: String(raw.projectName ?? '').trim(),
         remark: String(raw.remark ?? '').trim(),
         location, assignedBy: location === POOL ? null : 'HR',
+        ...(hasContacts ? { email: String(raw.email ?? '').trim(), phone: phoneText(raw.phone) } : {}),
         ...(hasScores ? { scores: cleanScores(Object.fromEntries(DIMENSIONS.map((d) => [d.key, raw['score:' + d.key]]))) } : {})
       };
       if (seen.has(id)) { result.duplicates.push(`${id} (${seen.get(id)} และ ${name})`); continue; }
@@ -118,6 +124,7 @@ export async function exportWorkbook(candidates) {
   const rows = candidates.map((c) => ({
     'Candidate ID': c.id, 'ชื่อ-นามสกุล': c.name, 'ตำแหน่ง': c.position, 'อายุ': c.age,
     'ประสบการณ์รวม (ปี)': c.experience, 'การศึกษา': c.education, 'บริษัทล่าสุด': c.company,
+    'Email': c.email || '', 'เบอร์โทรศัพท์': c.phone || '',
     'Resume/CV': c.cvUrl, 'เงินเดือนปัจจุบัน': c.salaryCurrent, 'เงินเดือนคาดหวัง': c.salaryExpected,
     'Candidate Score %': candScore(c) == null ? '' : Math.round(candScore(c) * 100), 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': recLabel(c.recommendation),
     'HR Highlight': c.hrNote, 'Executive Decision': c.decision,

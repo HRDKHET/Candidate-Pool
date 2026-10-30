@@ -59,6 +59,10 @@ const toSalaryRow = (c) => ({
   candidate_id: c.id, salary_current: c.salaryCurrent ?? null, salary_expected: c.salaryExpected ?? null,
   ...(typeof c.showSalary === 'boolean' ? { show_salary: c.showSalary } : {})
 });
+// Email and phone live in candidate_contacts, readable by HRS only (011_candidate_contacts.sql).
+// Written only when the record carries them, so an Excel sheet without those columns keeps them.
+const hasContact = (c) => 'email' in c || 'phone' in c;
+const toContactRow = (c) => ({ candidate_id: c.id, email: c.email || null, phone: c.phone || null });
 const CLEAR_INTERVIEW_ROW = {
   interview_at: null, interview_mode: null, interview_status: null, interviewers: [],
   interview_location: null, meeting_link: null, project_name: null, remark: null,
@@ -213,8 +217,14 @@ export const supabaseStore = {
       changed.data.forEach(rememberSalary);
     }
     const none = { salaryCurrent: null, salaryExpected: null, showSalary: false };
+    // Contacts: HRS only (a แผนก account would get no rows anyway). Small table, loaded whole.
+    const contacts = new Map();
+    if (isAdmin()) {
+      const r = await c.from('candidate_contacts').select('candidate_id,email,phone');
+      if (!r.error) r.data.forEach((x) => contacts.set(x.candidate_id, { email: x.email || '', phone: x.phone || '' }));
+    }
     return [...cache.rows.values()]
-      .map((r) => ({ ...r, ...(cache.sal.get(r.id) || none) }))
+      .map((r) => ({ ...r, ...(cache.sal.get(r.id) || none), ...(contacts.get(r.id) || {}) }))
       .sort((a, b) => (candScore(b) ?? -1) - (candScore(a) ?? -1));
   },
 
@@ -265,6 +275,7 @@ export const supabaseStore = {
     const { error } = await q;
     if (error) throw new Error(error.code === '23505' ? `Candidate ID ${record.id} มีอยู่แล้ว` : error.message);
     check(await c.from('candidate_salaries').upsert(toSalaryRow(record), { onConflict: 'candidate_id' }));
+    if (hasContact(record)) check(await c.from('candidate_contacts').upsert(toContactRow(record), { onConflict: 'candidate_id' }));
     return record;
   },
   async deleteCandidate(id) { const c = await sb(); check(await c.from('candidates').delete().eq('id', id)); },
@@ -272,6 +283,8 @@ export const supabaseStore = {
     const c = await sb();
     check(await c.from('candidates').upsert(records.map(toRow), { onConflict: 'id' }));
     check(await c.from('candidate_salaries').upsert(records.map(toSalaryRow), { onConflict: 'candidate_id' }));
+    const withContact = records.filter(hasContact);
+    if (withContact.length) check(await c.from('candidate_contacts').upsert(withContact.map(toContactRow), { onConflict: 'candidate_id' }));
     return records.length;
   },
   async listUsers() {

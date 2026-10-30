@@ -6,7 +6,7 @@ import { esc, ICONS, HRS, DIMENSIONS, cleanScores, openModal } from './ui.js';
 const CLAUDE_URL = 'https://claude.ai/new';
 
 const EXAMPLE = {
-  name: '', position: '', age: null, experience_years: null, education: '', latest_company: '',
+  name: '', email: '', phone: '', position: '', age: null, experience_years: null, education: '', latest_company: '',
   salary_current: null, salary_expected: null,
   scores: Object.fromEntries(DIMENSIONS.map((d) => [d.key, { score: null, reason: '' }])),
   highlight: '', questions: []
@@ -22,6 +22,7 @@ export function resumePrompt(positions = []) {
 - age: ใส่เฉพาะเมื่อ Resume ระบุอายุหรือวันเกิด
 - experience_years: รวมระยะเวลาทำงานทั้งหมด ไม่นับช่วงที่ทำงานซ้อนกัน ทศนิยม 1 ตำแหน่ง
 - position: ${positions.length ? `เลือกจากตำแหน่งในระบบที่ตรงกับ Resume ที่สุด: ${positions.join(', ')} ถ้าไม่ตรงเลย ให้ใช้ตำแหน่งที่ผู้สมัครระบุใน Resume` : 'ตำแหน่งที่ผู้สมัครระบุใน Resume'}
+- email / phone: อีเมลและเบอร์โทรศัพท์ของผู้สมัคร ตามที่เขียนใน Resume
 - education: วุฒิสูงสุด สาขา และสถาบัน
 - latest_company: บริษัทที่ทำงานล่าสุด
 - salary_current / salary_expected: ตัวเลขบาทต่อเดือน ใส่เฉพาะเมื่อ Resume ระบุ
@@ -74,7 +75,7 @@ export function parseResumeReply(reply) {
 
   return {
     record: {
-      name: text(data.name), position: text(data.position),
+      name: text(data.name), email: text(data.email), phone: text(data.phone), position: text(data.position),
       age: num(data.age), experience: num(data.experience_years),
       education: text(data.education), company: text(data.latest_company),
       salaryCurrent: num(data.salary_current), salaryExpected: num(data.salary_expected),

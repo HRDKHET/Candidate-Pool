@@ -18,6 +18,13 @@ function salaryFacts(c, showSalary) {
     fact('เงินเดือนคาดหวัง', `${baht(c.salaryExpected)}${raise == null ? '' : ` <span class="muted" style="font-weight:500">(${raise >= 0 ? '+' : ''}${raise}%)</span>`}`);
 }
 
+function contactFacts(c) {
+  const mail = c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—';
+  const tel = c.phone ? `<a href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ''))}">${esc(c.phone)}</a>` : '—';
+  const hr = (label, value) => `<div><dt>${esc(label)} <span class="hr-only">เห็นเฉพาะ ${esc(HRS)}</span></dt><dd>${value}</dd></div>`;
+  return hr('อีเมล', mail) + hr('เบอร์โทรศัพท์', tel);
+}
+
 function scoreBasis(c) {
   const n = scoredDims(c);
   if (!n) return `รอ ${esc(HRS)} ให้คะแนนรายมิติ`;
@@ -56,7 +63,8 @@ function interviewSection(c) {
     </section>`;
 }
 
-export function openProfile(c, { actions = [], onAction, showSalary = true } = {}) {
+// showContact: HRS only; units never receive email/phone in the first place.
+export function openProfile(c, { actions = [], onAction, showSalary = true, showContact = false } = {}) {
   const av = avatarFor(c.id);
   const rec = recommendationFor(c);
   const m = candScore(c) ?? 0;
@@ -93,6 +101,7 @@ export function openProfile(c, { actions = [], onAction, showSalary = true } = {
     <section class="profile-section" aria-labelledby="pf-info">
       <h3 id="pf-info">ข้อมูลผู้สมัคร</h3>
       <dl class="facts">
+        ${showContact ? contactFacts(c) : ''}
         ${fact('อายุ', c.age == null ? '—' : esc(c.age) + ' ปี')}
         ${fact('ประสบการณ์รวม', c.experience == null ? '—' : esc(c.experience) + ' ปี')}
         ${fact('การศึกษา', esc(c.education || '—'))}

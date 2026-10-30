@@ -170,9 +170,9 @@ export const demoStore = {
     });
     const all = db.candidates.slice().sort((a, b) => (candScore(b) ?? -1) - (candScore(a) ?? -1));
     if (s.role === 'admin') return all.map((c) => ({ showSalary: false, ...c }));
-    // Units see a salary only where HRS switched it on for that candidate.
+    // Units never see email/phone, and see a salary only where HRS switched it on for that candidate.
     return all.filter((c) => c.location === POOL || c.location === s.unit)
-      .map((c) => (c.showSalary ? c : { ...c, salaryCurrent: null, salaryExpected: null, showSalary: false }));
+      .map(({ email, phone, ...c }) => (c.showSalary ? c : { ...c, salaryCurrent: null, salaryExpected: null, showSalary: false }));
   },
   async setShowSalary(id, on) {
     requireSession('admin');

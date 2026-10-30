@@ -155,7 +155,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
             const hold = holdLeft(c);
-            return `<tr data-row>
+            return `<tr data-row="${esc(c.id)}" title="คลิกเพื่อดูข้อมูลและจัดการ ${esc(c.id)}">
               <td class="pool-who">
                 <button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button>
                 <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''}</span>
@@ -333,6 +333,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('experience', 'ประสบการณ์รวม (ปี)', v.experience, 'number')}
         ${f('education', 'การศึกษา', v.education)}
         ${f('company', 'บริษัทล่าสุด', v.company)}
+        ${f('email', `อีเมล <span class="hr-only">เห็นเฉพาะ ${esc(HRS)}</span>`, v.email, 'email')}
+        ${f('phone', `เบอร์โทรศัพท์ <span class="hr-only">เห็นเฉพาะ ${esc(HRS)}</span>`, v.phone, 'tel')}
         ${f('cvUrl', 'ลิงก์ Resume / CV', v.cvUrl, 'url')}
         ${f('salaryCurrent', 'เงินเดือนปัจจุบัน', v.salaryCurrent, 'number')}
         ${f('salaryExpected', 'เงินเดือนคาดหวัง', v.salaryExpected, 'number')}
@@ -391,6 +393,8 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
         };
         if (!rec.id || !rec.name) { err.hidden = false; err.textContent = 'ต้องระบุ Candidate ID และชื่อ-นามสกุล'; return; }
+        rec.email = (d.email || '').trim(); rec.phone = (d.phone || '').trim();
+        if (rec.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(rec.email)) { err.hidden = false; err.textContent = 'รูปแบบอีเมลไม่ถูกต้อง'; form.elements.email.focus(); return; }
         rec.cvUrl = (d.cvUrl || '').trim();
         if (rec.cvUrl && !isWebUrl(rec.cvUrl)) { err.hidden = false; err.textContent = 'ลิงก์ Resume / CV ต้องขึ้นต้นด้วย https:// หรือ http://'; return; }
         try {
@@ -578,6 +582,43 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     catch (e) { toast(errorMessage(e), { error: true }); await reload(); }
   }
 
+  /* ---------- one candidate: popup with its actions ---------- */
+  const moveCandidate = (c, to) => {
+    const from = c.location;
+    return run(() => store.moveTo(c.id, to), to === POOL ? `ดึง ${c.id} กลับ Candidate Pool แล้ว` : `ส่ง ${c.id} เข้า Pool ${to} แล้ว`, {
+      action: 'เลิกทำ', onAction: () => run(() => store.moveTo(c.id, from), `ย้าย ${c.id} กลับ ${locLabel(from)} แล้ว`)
+    });
+  };
+  function moveForm(c) {
+    const targets = LOCATIONS.filter((l) => l !== c.location);
+    openModal(`
+      <div class="modal-head">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <h2 id="modal-title">ส่งเข้า Pool ส่วนงาน</h2>
+          <p class="muted" style="font-size:15px">${esc(c.id)} · ${esc(c.name)} · ตอนนี้อยู่ที่ ${esc(locLabel(c.location))}</p>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="ปิด">${ICONS.close}</button>
+      </div>
+      <div class="field"><label for="mv-to">ย้ายไปที่</label>
+        <select id="mv-to" class="input">${targets.map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : esc(unitFullLabel(l))}</option>`).join('')}</select></div>
+      <p class="muted" style="font-size:14px">สถานะจะกลับเป็น "รอพิจารณา" และนัดสัมภาษณ์เดิมจะถูกยกเลิก</p>
+      <div class="modal-actions"><button type="button" class="btn" data-close>ยกเลิก</button><button type="button" class="btn btn-dark" data-ok>ย้าย</button></div>`, (dlg, close) => {
+      dlg.querySelector('[data-ok]').addEventListener('click', () => { const to = dlg.querySelector('#mv-to').value; close(); moveCandidate(c, to); });
+    });
+  }
+  function candidatePopup(c) {
+    if (!c) return;
+    openProfile(c, {
+      showContact: true,
+      actions: [
+        { id: 'edit', label: 'แก้ไขข้อมูล' },
+        { id: 'move', label: c.location === POOL ? 'ส่งเข้า Pool ส่วนงาน' : 'ย้าย / ดึงกลับ' },
+        { id: 'interview', label: c.interviewStatus === 'requested' ? 'ยืนยันนัด' : c.interviewStatus ? 'ดูนัด' : 'นัดสัมภาษณ์', primary: true }
+      ],
+      onAction: (id) => (id === 'edit' ? candidateForm(c) : id === 'move' ? moveForm(c) : c.interviewStatus ? detail(c) : interviewForm(c))
+    });
+  }
+
   /* ---------- events ---------- */
   root.onclick = async (e) => {
     const t = (s) => e.target.closest(s);
@@ -609,16 +650,9 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if ((el = t('[data-compare-open]'))) return openCompare(st.list, [], { pos: st.f.pos });
     if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; return render(); }
     if ((el = t('[data-f-clear]'))) { st.f = newFilterState(); st.q = ''; st.loc = 'all'; render(); toast('ล้างตัวกรองแล้ว'); return; }
-    if ((el = t('[data-profile]'))) {
-      const c = byId(el.dataset.profile);
-      return openProfile(c, {
-        actions: [
-          { id: 'edit', label: 'แก้ไขข้อมูล' },
-          { id: 'interview', label: c.interviewStatus === 'requested' ? 'ยืนยันนัด' : c.interviewStatus ? 'ดูนัด' : 'จัดนัด', primary: true }
-        ],
-        onAction: (id) => (id === 'edit' ? candidateForm(c) : c.interviewStatus ? detail(c) : interviewForm(c))
-      });
-    }
+    if ((el = t('[data-profile]'))) return candidatePopup(byId(el.dataset.profile));
+    // A click anywhere on a candidate row (not on its own controls) opens the same popup.
+    if ((el = t('tr[data-row]')) && el.dataset.row && !t('button, a, input, select, label')) return candidatePopup(byId(el.dataset.row));
     if ((el = t('[data-add]'))) return candidateForm(null);
     if ((el = t('[data-resume]'))) return openResumeImport({ positions: positionsOf(st.list), onDraft: (d) => candidateForm(null, d) });
     if ((el = t('[data-edit]'))) return candidateForm(byId(el.dataset.edit));
@@ -666,12 +700,9 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       });
     }
     if (el.dataset.move && el.value) {
-      const c = byId(el.dataset.move), to = el.value, from = c.location;
-      const row = el.closest('tr');
-      const go = () => run(() => store.moveTo(c.id, to), to === POOL ? `ดึง ${c.id} กลับ Candidate Pool แล้ว` : `ส่ง ${c.id} เข้า Pool ${to} แล้ว`, {
-        action: 'เลิกทำ', onAction: () => run(() => store.moveTo(c.id, from), `ย้าย ${c.id} กลับ ${locLabel(from)} แล้ว`)
-      });
-      return st.loc === 'all' ? go() : anim.leave(row, go);
+      const c = byId(el.dataset.move), to = el.value;
+      const go = () => moveCandidate(c, to);
+      return st.loc === 'all' ? go() : anim.leave(el.closest('tr'), go);
     }
     if (el.dataset.owner) {
       return run(() => store.updateUser(el.dataset.owner, { ownerName: el.value.trim() }), 'บันทึกชื่อผู้ถือบัญชีแล้ว');
