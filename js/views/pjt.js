@@ -2,7 +2,7 @@
 // candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, recLabel, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore, clip, NOTE_FROM, preTag
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore, clip, NOTE_FROM, preTag, menuHTML
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -114,13 +114,13 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       ${interviewBlock(c)}
       <div class="card-actions">
         ${c.interviewStatus ? '' : `<button type="button" class="btn btn-dark" data-request="${esc(c.id)}"><span style="color:#C8F169;display:flex">${ICONS.calendar}</span>นัดสัมภาษณ์</button>`}
-        <button type="button" class="btn" data-return="${esc(c.id)}">${ICONS.back} ส่งคืน Candidate Pool</button>
+        ${menuHTML({ title: `ตัวเลือกเพิ่มเติม ${c.id}`, label: c.interviewStatus ? 'ตัวเลือก' : '', cls: c.interviewStatus ? 'btn' : 'btn icon-only', align: 'right', items: [
+          { label: 'เปรียบเทียบกับคนอื่น', icon: ICONS.radar, attrs: `data-compare="${esc(c.id)}"` },
+          safeUrl(c.cvUrl) ? { label: 'เปิด CV', icon: ICONS.doc, href: safeUrl(c.cvUrl), attrs: 'target="_blank" rel="noopener noreferrer"' } : null,
+          { label: 'ส่งคืน Candidate Pool', icon: ICONS.back, attrs: `data-return="${esc(c.id)}"`, sep: true }
+        ] })}
       </div>
       <div class="card-foot">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-          ${safeUrl(c.cvUrl) ? `<a href="${esc(safeUrl(c.cvUrl))}" target="_blank" rel="noopener noreferrer" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600">${ICONS.doc} CV</a>` : ''}
-          <button type="button" class="btn btn-sm" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
-        </div>
         <span class="muted" style="font-size:13px">${c.assignedBy === unit ? 'คุณเลือกจาก Candidate Pool' : `${esc(HRS)} ส่งเข้า Pool นี้`}</span>
       </div>
     </article>`;
@@ -143,7 +143,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       </div>
       <div class="note">${noteText(c)}</div>
       <div class="card-bottom" style="display:flex;gap:10px;flex-wrap:wrap">
-        <button type="button" class="btn" data-compare="${esc(c.id)}">${ICONS.radar} เทียบ</button>
+        <button type="button" class="btn icon-only" data-compare="${esc(c.id)}" title="เปรียบเทียบกับคนอื่น" aria-label="เปรียบเทียบ ${esc(c.id)} กับคนอื่น">${ICONS.radar}</button>
         <button type="button" class="btn btn-dark" style="flex:1" data-pick="${esc(c.id)}"><span style="color:#C8F169;display:flex">${ICONS.plus}</span>เลือกเข้า Pool ของ ${esc(unit)}</button>
       </div>
     </article>`;
@@ -196,7 +196,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       <div class="account-bar" style="margin:0">
         ${bellHTML(st.notifs)}
         <span class="account-name"><span class="avatar-sm" aria-hidden="true">${esc((session.username || 'U').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
-        <button type="button" class="btn btn-sm btn-dark" data-signout>${ICONS.logout} ออกจากระบบ</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-signout title="ออกจากระบบ">${ICONS.logout} ออกจากระบบ</button>
       </div>
     </header>
     <main class="page">
@@ -207,7 +207,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           ${V !== 'calendar' ? `<button type="button" class="btn btn-sm" data-compare-open>${ICONS.radar} เปรียบเทียบผู้สมัคร</button>` : ''}
-          <button type="button" class="btn btn-sm" data-refresh>${ICONS.refresh} รีเฟรช</button>
+          <button type="button" class="btn btn-sm btn-ghost icon-only" data-refresh title="รีเฟรช" aria-label="รีเฟรช">${ICONS.refresh}</button>
         </div>
       </section>
 
@@ -314,7 +314,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
       return;
     }
     // Anywhere else on a card (or its name) opens the profile.
-    if ((el = t('[data-profile]')) || (!t('button, a, input, select, label') && (el = t('[data-card]')))) {
+    if ((el = t('[data-profile]')) || (!t('button, a, input, select, label, details') && (el = t('[data-card]')))) {
       return profile(byId(el.dataset.profile || el.dataset.card));
     }
   };

@@ -1,7 +1,7 @@
 // Hash router with role guards. #/login, #/pjt (แผนก), #/admin (HRS).
 import { store } from './data/store.js';
 import { loadAnime } from './anim.js';
-import { errorMessage, esc, setOrg, initTips } from './ui.js';
+import { errorMessage, esc, setOrg, initTips, initMenus } from './ui.js';
 import { mountLogin } from './views/login.js';
 import { mountPjt } from './views/pjt.js';
 import { mountAdmin } from './views/admin.js';
@@ -46,6 +46,7 @@ async function start() {
   await Promise.all([loadAnime(), store.listOrg().then(setOrg).catch(() => {})]);
   window.addEventListener('hashchange', route);
   initTips();
+  initMenus();
   route();
 }
 start();

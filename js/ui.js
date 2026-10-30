@@ -308,6 +308,10 @@ export const ICONS = {
   trash: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
   chevL: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   chevR: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  more: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  upload: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>',
+  download: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>',
   refresh: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>'
 };
 
@@ -381,4 +385,49 @@ export function confirmDialog({ title, body, confirm = 'ยืนยัน', dan
 
 export function errorMessage(e) {
   return (e && (e.message || e.error_description)) || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+}
+
+// Overflow menu: one button that opens a short list of less-used actions, so pages show only the
+// main action up front. Items keep their data-* attributes, so the views' click handlers still work.
+// items: [{ label, attrs, icon, danger, href, for, sep }] — for makes a label for a file input; sep draws a divider.
+export function menuHTML({ label = '', icon = ICONS.more, title = 'ตัวเลือกเพิ่มเติม', cls = 'btn btn-sm', align = 'right', items }) {
+  const list = items.filter(Boolean).map((it) => {
+    const inner = `${it.icon || ''}<span>${esc(it.label)}</span>`;
+    const cl = `menu-item${it.danger ? ' danger' : ''}`;
+    const el = it.href ? `<a class="${cl}" role="menuitem" href="${esc(it.href)}" ${it.attrs || ''}>${inner}</a>`
+      : it.for ? `<label class="${cl}" role="menuitem" for="${esc(it.for)}" ${it.attrs || ''}>${inner}</label>`
+      : `<button type="button" class="${cl}" role="menuitem" ${it.attrs || ''}>${inner}</button>`;
+    return (it.sep ? '<hr class="menu-sep">' : '') + el;
+  }).join('');
+  return `<details class="menu menu-${align}"><summary class="${cls}" title="${esc(title)}" aria-label="${esc(label || title)}">${icon}${label ? `<span>${esc(label)}</span>` : ''}</summary><div class="menu-list" role="menu">${list}</div></details>`;
+}
+// One document listener closes open menus on an outside click, after choosing an item, or on Escape.
+export function initMenus() {
+  const closeAll = (keep) => document.querySelectorAll('details.menu[open]').forEach((d) => { if (d !== keep) d.open = false; });
+  document.addEventListener('click', (e) => {
+    const m = e.target instanceof Element && e.target.closest('details.menu');
+    if (!m) return closeAll();
+    closeAll(m);
+    if (e.target.closest('.menu-item')) setTimeout(() => { m.open = false; }, 0);
+  });
+  // The list is placed with fixed coordinates so a scrolling table or card can't clip it;
+  // it opens upwards when there is no room below. Scrolling closes it rather than leaving it adrift.
+  document.addEventListener('toggle', (e) => {
+    const m = e.target;
+    if (!(m instanceof HTMLDetailsElement) || !m.classList.contains('menu') || !m.open) return;
+    const list = m.querySelector('.menu-list');
+    const r = m.querySelector('summary').getBoundingClientRect();
+    list.style.cssText = 'position:fixed;visibility:hidden';
+    const w = list.offsetWidth, h = list.offsetHeight;
+    const left = m.classList.contains('menu-left') ? r.left : r.right - w;
+    const up = r.bottom + 6 + h > innerHeight && r.top - 6 - h > 0;
+    list.style.cssText = `position:fixed;left:${Math.max(8, Math.min(left, innerWidth - w - 8))}px;top:${up ? r.top - 6 - h : r.bottom + 6}px;right:auto;bottom:auto`;
+  }, true);
+  addEventListener('scroll', (e) => { if (!(e.target instanceof Element && e.target.closest('.menu-list'))) closeAll(); }, true);
+  addEventListener('resize', () => closeAll());
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const m = document.querySelector('details.menu[open]');
+    if (m) { m.open = false; m.querySelector('summary').focus(); }
+  });
 }

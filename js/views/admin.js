@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM, nextCandidateIds, preTag, scoreNote
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM, nextCandidateIds, preTag, scoreNote, menuHTML
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -149,13 +149,15 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           <option value="">ส่งเข้า Pool…</option>
           ${LOCATIONS.map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : esc(unitFullLabel(l))}</option>`).join('')}
         </select>
-        <button type="button" class="btn btn-sm" data-bulk="pre">Pre-interview แล้ว</button>
-        <button type="button" class="btn btn-sm" data-bulk="salary-on">แผนกเห็นเงินเดือน</button>
-        <button type="button" class="btn btn-sm" data-bulk="salary-off">ซ่อนเงินเดือน</button>
-        <button type="button" class="btn btn-sm" data-bulk="compare" ${n >= 2 && n <= 4 ? '' : 'disabled title="เลือก 2–4 คน"'}>${ICONS.radar} เปรียบเทียบ</button>
-        <button type="button" class="btn btn-sm" data-bulk="export">ส่งออก Excel</button>
-        <button type="button" class="btn btn-sm btn-danger" data-bulk="delete">${ICONS.trash} ลบ</button>
-        <button type="button" class="btn btn-sm" data-bulk="clear">ยกเลิกการเลือก</button>
+        ${menuHTML({ label: 'จัดการอื่นๆ', icon: ICONS.down, items: [
+          { label: n >= 2 && n <= 4 ? 'เปรียบเทียบ' : 'เปรียบเทียบ (เลือก 2–4 คน)', icon: ICONS.radar, attrs: `data-bulk="compare" ${n >= 2 && n <= 4 ? '' : 'disabled'}` },
+          { label: 'ทำเครื่องหมาย Pre-interview แล้ว', attrs: 'data-bulk="pre"' },
+          { label: 'ให้แผนกเห็นเงินเดือน', attrs: 'data-bulk="salary-on"', sep: true },
+          { label: 'ซ่อนเงินเดือน', attrs: 'data-bulk="salary-off"' },
+          { label: 'ส่งออก Excel', icon: ICONS.download, attrs: 'data-bulk="export"', sep: true },
+          { label: 'ลบผู้สมัครที่เลือก', icon: ICONS.trash, attrs: 'data-bulk="delete"', danger: true, sep: true }
+        ] })}
+        <button type="button" class="btn btn-sm icon-only" data-bulk="clear" title="ยกเลิกการเลือก" aria-label="ยกเลิกการเลือก">${ICONS.close}</button>
       </div>
     </div>`;
   }
@@ -231,9 +233,9 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     ${bulkBar(rows)}
     <div class="table-wrap pool-wrap">
       <table class="pool-table">
-        <thead><tr><th scope="col" class="pool-check"><label class="sr-only" for="sel-all">เลือกทั้งหมดที่แสดง</label><input type="checkbox" id="sel-all" data-sel-all ${rows.length && rows.every((c) => st.sel.has(c.id)) ? 'checked' : ''} title="เลือกทั้งหมดที่แสดง ${rows.length} คน"></th><th scope="col">ผู้สมัคร</th><th scope="col">Candidate Score</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
+        <thead><tr><th scope="col" class="pool-check"><label class="sr-only" for="sel-all">เลือกทั้งหมดที่แสดง</label><input type="checkbox" id="sel-all" data-sel-all ${rows.length && rows.every((c) => st.sel.has(c.id)) ? 'checked' : ''} title="เลือกทั้งหมดที่แสดง ${rows.length} คน"></th><th scope="col">ผู้สมัคร</th><th scope="col">Candidate Score</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col"><span class="sr-only">จัดการ</span></th></tr></thead>
         <tbody>
-          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="9">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
+          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="7">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
@@ -242,24 +244,24 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <td class="pool-check" data-label="เลือก"><label class="sr-only" for="sel-${esc(c.id)}">เลือก ${esc(c.id)}</label><input type="checkbox" id="sel-${esc(c.id)}" data-sel="${esc(c.id)}" ${st.sel.has(c.id) ? 'checked' : ''}></td>
               <td class="pool-who">
                 <button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button>
-                <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''} ${preTag(c)}</span>
+                <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''} ${preTag(c)}${c.showSalary ? ' <span class="sal-tag" title="แผนกเห็นเงินเดือนของผู้สมัครคนนี้">฿ แผนกเห็นเงินเดือน</span>' : ''}</span>
               </td>
               <td data-label="Candidate Score" style="font-weight:700;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</td>
-              <td data-label="แผนกเห็นเงินเดือน"><button type="button" class="switch switch-sm" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" title="${c.showSalary ? 'แผนกเห็นเงินเดือน' : 'แผนกไม่เห็นเงินเดือน'}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="switch-text">${c.showSalary ? 'แสดง' : 'ซ่อน'}</span></button></td>
               <td data-label="Executive Decision"><span class="pill decision-pill" style="background:${ds.bg};color:${ds.fg}">${esc(c.decision || 'รอพิจารณา')}</span></td>
               <td data-label="นัดสัมภาษณ์">${ist
                 ? `<button type="button" class="pill" data-detail="${esc(c.id)}" style="border:0;cursor:pointer;background:${ist.bg};color:${ist.fg}">${esc(ist.label)}</button>`
-                : `<button type="button" class="btn btn-sm" data-interview="${esc(c.id)}">${ICONS.calendar} จัดนัด</button>`}</td>
+                : ''}</td>
               <td data-label="อยู่ที่"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><span class="dot" style="background:${ls.color}" aria-hidden="true"></span>${esc(locLabel(c.location))}</span>
                 ${hold ? `<span class="hold-mini${hold.urgent ? ' urgent' : ''}">เด้งกลับใน ${esc(hold.text)}</span>` : ''}</td>
-              <td data-label="ย้าย"><label class="sr-only" for="mv-${esc(c.id)}">ย้าย ${esc(c.id)}</label>
-                <select id="mv-${esc(c.id)}" class="table-select" data-move="${esc(c.id)}">
-                  <option value="">ย้ายไป…</option>
-                  ${LOCATIONS.filter((l) => l !== c.location).map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : 'ส่งเข้า Pool ' + esc(l)}</option>`).join('')}
-                </select></td>
-              <td class="pool-edit"><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
+              <td class="pool-edit">${menuHTML({ title: `จัดการ ${c.id}`, cls: 'btn btn-sm btn-ghost icon-only', items: [
+                { label: 'แก้ไขข้อมูล', attrs: `data-edit="${esc(c.id)}"` },
+                ist ? { label: 'ดูนัดสัมภาษณ์', icon: ICONS.calendar, attrs: `data-detail="${esc(c.id)}"` }
+                  : { label: 'นัดสัมภาษณ์', icon: ICONS.calendar, attrs: `data-interview="${esc(c.id)}"` },
+                { label: c.location === POOL ? 'ส่งเข้า Pool ส่วนงาน' : 'ย้าย / ดึงกลับ Candidate Pool', attrs: `data-move-form="${esc(c.id)}"` },
+                { label: c.showSalary ? 'ซ่อนเงินเดือนจากแผนก' : 'ให้แผนกเห็นเงินเดือน', attrs: `data-salary="${esc(c.id)}"`, sep: true }
+              ] })}</td>
             </tr>`;
-          }).join('')).join('') : '<tr><td colspan="9" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
+          }).join('')).join('') : '<tr><td colspan="7" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
         </tbody>
       </table>
     </div>`;
@@ -280,17 +282,21 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
               <strong style="font-size:16px">${esc(d.name)} <span class="count">${d.units.length} แผนก</span></strong>
               <span style="display:flex;flex-wrap:wrap;gap:8px">
                 <button type="button" class="btn btn-sm" data-add-unit="${esc(d.id)}">${ICONS.plus} เพิ่มแผนก</button>
-                <button type="button" class="btn btn-sm" data-edit-division="${esc(d.id)}">แก้ไขชื่อ</button>
-                <button type="button" class="btn btn-sm btn-danger" data-del-division="${esc(d.id)}" ${d.units.length ? 'aria-disabled="true" title="ลบได้เมื่อฝ่ายไม่มีแผนก"' : ''}>ลบฝ่าย</button>
+                ${menuHTML({ title: `จัดการฝ่าย ${d.name}`, cls: 'btn btn-sm btn-ghost icon-only', items: [
+                  { label: 'แก้ไขชื่อฝ่าย', attrs: `data-edit-division="${esc(d.id)}"` },
+                  { label: d.units.length ? 'ลบฝ่าย (ต้องไม่มีแผนก)' : 'ลบฝ่าย', icon: ICONS.trash, danger: true, attrs: `data-del-division="${esc(d.id)}" ${d.units.length ? 'disabled' : ''}` }
+                ] })}
               </span>
             </div>
             ${d.units.length ? `<ul class="unit-list">${d.units.map((u) => `
               <li class="unit-item">
                 <span class="mono" style="font-weight:700">${esc(u)}</span>
                 <span class="muted" style="font-size:13px">${st.list.filter((c) => c.location === u).length} คนใน Pool</span>
-                <span style="margin-left:auto;display:flex;gap:6px">
-                  <button type="button" class="btn btn-sm" data-edit-unit="${esc(u)}" aria-label="แก้ไขแผนก ${esc(u)}">แก้ไข</button>
-                  <button type="button" class="btn btn-sm btn-danger" data-del-unit="${esc(u)}" aria-label="ลบแผนก ${esc(u)}">ลบ</button>
+                <span style="margin-left:auto">
+                  ${menuHTML({ title: `จัดการแผนก ${u}`, cls: 'btn btn-sm btn-ghost icon-only', items: [
+                    { label: 'แก้ไขแผนก', attrs: `data-edit-unit="${esc(u)}"` },
+                    { label: 'ลบแผนก', icon: ICONS.trash, danger: true, attrs: `data-del-unit="${esc(u)}"` }
+                  ] })}
                 </span>
               </li>`).join('')}</ul>`
               : '<span class="muted" style="font-size:14px">ยังไม่มีแผนก — ฝ่ายนี้จะแสดงในหน้าเข้าสู่ระบบเมื่อมีแผนกแรก</span>'}
@@ -341,7 +347,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <div class="account-bar">
           ${bellHTML(st.notifs)}
           <span class="account-name"><span class="avatar-sm" aria-hidden="true">${esc((session.username || 'H').charAt(0).toUpperCase())}</span>${esc(session.username)}</span>
-          <button type="button" class="btn btn-sm btn-dark" data-signout>${ICONS.logout} ออกจากระบบ</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-signout title="ออกจากระบบ">${ICONS.logout} ออกจากระบบ</button>
         </div>
         <div class="page-head">
           <div style="display:flex;flex-direction:column;gap:6px" data-enter>
@@ -350,12 +356,15 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
             ${st.tab === 'pool' ? `
-              <button type="button" class="btn" data-compare-open>${ICONS.radar} เปรียบเทียบ</button>
-              <a class="btn" href="templates/candidate-import-template.xlsx" download title="ไฟล์ Excel ตัวอย่างพร้อมคำอธิบายแต่ละคอลัมน์">${ICONS.doc} Template นำเข้า</a>
-              <label class="btn" style="cursor:pointer">นำเข้าจาก Excel<input type="file" accept=".xlsx,.xlsm,.xls,.csv" data-import class="sr-only"></label>
-              <button type="button" class="btn" data-export>ส่งออก Excel</button>
-              <button type="button" class="btn btn-violet" data-resume>${ICONS.doc} นำเข้า Resume</button>
-              <button type="button" class="btn btn-dark" data-add>${ICONS.plus} เพิ่มผู้สมัคร</button>` : `<button type="button" class="btn btn-sm" data-refresh>${ICONS.refresh} รีเฟรช</button>`}
+              <input type="file" id="import-file" accept=".xlsx,.xlsm,.xls,.csv" data-import class="sr-only" tabindex="-1">
+              ${menuHTML({ label: 'เครื่องมือ', icon: ICONS.down, cls: 'btn', items: [
+                { label: 'เปรียบเทียบผู้สมัคร', icon: ICONS.radar, attrs: 'data-compare-open' },
+                { label: 'นำเข้าจาก Excel', icon: ICONS.upload, for: 'import-file', sep: true },
+                { label: 'ส่งออก Excel', icon: ICONS.download, attrs: 'data-export' },
+                { label: 'ดาวน์โหลด Template นำเข้า', icon: ICONS.doc, href: 'templates/candidate-import-template.xlsx', attrs: 'download' }
+              ] })}
+              <button type="button" class="btn" data-resume>${ICONS.doc} นำเข้า Resume</button>
+              <button type="button" class="btn btn-dark" data-add>${ICONS.plus} เพิ่มผู้สมัคร</button>` : `<button type="button" class="btn btn-sm btn-ghost icon-only" data-refresh title="รีเฟรช" aria-label="รีเฟรช">${ICONS.refresh}</button>`}
           </div>
         </div>
         ${st.error ? `<div class="error-box" role="alert">${esc(st.error)}</div>` : ''}
@@ -738,10 +747,11 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if ((el = t('[data-bulk]'))) return bulkAction(el.dataset.bulk);
     if ((el = t('[data-profile]'))) return candidatePopup(byId(el.dataset.profile));
     // A click anywhere on a candidate row (not on its own controls) opens the same popup.
-    if ((el = t('tr[data-row]')) && el.dataset.row && !t('button, a, input, select, label')) return candidatePopup(byId(el.dataset.row));
+    if ((el = t('tr[data-row]')) && el.dataset.row && !t('button, a, input, select, label, details')) return candidatePopup(byId(el.dataset.row));
     if ((el = t('[data-add]'))) return candidateForm(null);
     if ((el = t('[data-resume]'))) return openResumeImport({ positions: positionsOf(st.list), onDraft: (d) => candidateForm(null, d) });
     if ((el = t('[data-edit]'))) return candidateForm(byId(el.dataset.edit));
+    if ((el = t('[data-move-form]'))) return moveForm(byId(el.dataset.moveForm));
     if ((el = t('[data-export]'))) {
       try { const { exportWorkbook } = await import('../excel.js'); await exportWorkbook(st.list); }
       catch (ex) { toast(errorMessage(ex), { error: true }); }

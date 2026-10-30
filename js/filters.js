@@ -56,7 +56,7 @@ export function groupByPosition(list, on) {
 // True when any filter differs from the defaults.
 export const filtersActive = (f) => f.pos !== 'all' || f.range !== 'all' || !!f.from || !!f.to || !f.group;
 
-// prefix keeps ids unique when two bars exist on a page. dirty enables the clear
+// prefix keeps ids unique when two bars exist on a page. dirty shows the clear
 // button (views pass true when their own search box or chips are also set).
 export function filterBarHTML(f, positions, { prefix = 'f', grouping = true, dirty = false } = {}) {
   const canClear = dirty || filtersActive(f);
@@ -79,7 +79,7 @@ export function filterBarHTML(f, positions, { prefix = 'f', grouping = true, dir
       <div class="field"><label for="${prefix}-from">ตั้งแต่</label><input id="${prefix}-from" class="input" type="date" data-f="from" value="${esc(f.from)}"></div>
       <div class="field"><label for="${prefix}-to">ถึง</label><input id="${prefix}-to" class="input" type="date" data-f="to" value="${esc(f.to)}"></div>` : ''}
     ${grouping ? `<button type="button" class="chip" data-f-group aria-pressed="${f.group}" style="align-self:flex-end">จัดกลุ่มตามตำแหน่ง</button>` : ''}
-    <button type="button" class="btn btn-sm filter-clear" data-f-clear ${canClear ? '' : 'disabled'}>${ICONS.refresh} ล้างตัวกรอง</button>
+    ${canClear ? `<button type="button" class="btn btn-sm btn-ghost filter-clear" data-f-clear>${ICONS.close} ล้างตัวกรอง</button>` : ''}
   </div>`;
 }
 
