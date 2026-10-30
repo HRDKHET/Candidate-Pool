@@ -270,13 +270,13 @@ export function matchColor(m) {
   if (m >= 0.5) return { text: '#D9480F', fill: '#FD7E14' };
   return { text: '#C92A2A', fill: '#E03131' };
 }
-// Pre-interview status label (English on purpose: shown as-is on cards and in the HRS table).
 // Shown wherever dimension scores are entered or read.
 export const SCORE_NOTE = 'คะแนนในแต่ละมิติมาจากการประเมิน Resume ของผู้สมัคร อาจจะไม่ได้สะท้อนคุณภาพจริงได้อย่างชัดเจน';
 export const scoreNote = (cls = '') => `<p class="score-note ${cls}" role="note">${ICONS.info}<span>${SCORE_NOTE}</span></p>`;
+// Pre-interview label (English on purpose), shown only once HRS has ticked Pre-interview.
 export const preTag = (c) => (c.preInterviewed
   ? '<span class="pre-tag yes">Pre-interviewed</span>'
-  : '<span class="pre-tag">Not pre-interviewed</span>');
+  : '');
 // Who writes the comment shown to units (hrNote).
 export const NOTE_FROM = 'Recruit';
 // First n characters of s on one line, counting a Thai letter with its vowel/tone marks as one.
