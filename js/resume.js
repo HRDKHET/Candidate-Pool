@@ -5,6 +5,8 @@ import { esc, ICONS, DIMENSIONS, cleanScores, openModal } from './ui.js';
 import { resumePrompt } from './resume-prompt.js';
 
 const CLAUDE_URL = 'https://claude.ai/new';
+// What HRS types in claude.ai once the "create-candidate-pool-profile" Skill is enabled on the account.
+const ASK = 'สร้าง Profile ผู้สมัครจาก Resume นี้';
 
 const text = (v) => (v == null ? '' : String(v).trim());
 const num = (v) => {
@@ -70,16 +72,18 @@ export function openResumeImport({ positions = [], onDraft }) {
     </div>
     <ol class="resume-steps">
       <li>
-        <div><strong>คัดลอกคำสั่ง</strong><span class="muted">คำสั่งจาก Skill "Candidate Pool Profile" บอก Claude ว่าต้องสรุปข้อมูลช่องไหน และให้คะแนน 7 มิติตามเกณฑ์ของระบบ</span></div>
-        <div class="resume-actions"><button type="button" class="btn btn-dark" data-copy>${ICONS.doc} คัดลอกคำสั่ง</button><span class="muted" data-copied role="status"></span></div>
-        <details><summary>ดูคำสั่ง</summary><pre class="resume-prompt">${esc(prompt)}</pre></details>
+        <div><strong>เปิด Claude แนบไฟล์ Resume แล้วพิมพ์</strong><span class="muted">"${esc(ASK)}" Skill "Candidate Pool Profile" ในบัญชีองค์กรจะสรุปข้อมูลและให้คะแนน 7 มิติให้ ผู้สมัคร 1 คนต่อ 1 แชต รองรับ PDF และรูปภาพ</span></div>
+        <div class="resume-actions">
+          <button type="button" class="btn btn-dark" data-open>เปิด claude.ai ↗</button>
+          <span class="muted" data-copied role="status"></span>
+        </div>
+        <details><summary>ยังไม่ได้เปิดใช้ Skill ในบัญชี? ใช้คำสั่งเต็มแทน</summary>
+          <div class="resume-actions"><button type="button" class="btn" data-copy>${ICONS.doc} คัดลอกคำสั่งเต็ม</button></div>
+          <pre class="resume-prompt">${esc(prompt)}</pre>
+        </details>
       </li>
       <li>
-        <div><strong>เปิด Claude แนบไฟล์ Resume แล้ววางคำสั่ง</strong><span class="muted">เข้าด้วยบัญชีองค์กร ผู้สมัคร 1 คนต่อ 1 แชต รองรับ PDF และรูปภาพ</span></div>
-        <div class="resume-actions"><a class="btn" href="${CLAUDE_URL}" target="_blank" rel="noopener noreferrer">เปิด claude.ai ↗</a></div>
-      </li>
-      <li>
-        <div><strong>คัดลอกคำตอบของ Claude มาวางที่นี่</strong><span class="muted">กดปุ่มคัดลอกใต้คำตอบใน Claude แล้ววางทั้งหมด</span></div>
+        <div><strong>คัดลอกคำตอบของ Claude มาวางที่นี่</strong><span class="muted">กดปุ่มคัดลอกใต้คำตอบใน Claude แล้ววาง ระบบจะเปิดฟอร์มให้ทันที</span></div>
         <label for="resume-reply" class="sr-only">คำตอบจาก Claude</label>
         <textarea id="resume-reply" class="input mono" rows="7" placeholder='\`\`\`json&#10;{ "name": "...", ... }&#10;\`\`\`'></textarea>
       </li>
@@ -91,15 +95,25 @@ export function openResumeImport({ positions = [], onDraft }) {
     </div>`, (dlg, close) => {
     const err = dlg.querySelector('[data-err]');
     const copied = dlg.querySelector('[data-copied]');
-    dlg.querySelector('[data-copy]').addEventListener('click', async () => {
-      copied.textContent = (await copyText(prompt)) ? 'คัดลอกแล้ว' : 'คัดลอกไม่สำเร็จ เปิด "ดูคำสั่ง" แล้วคัดลอกเอง';
+    // Opening Claude also copies the short request, so HRS only attaches the file and pastes.
+    dlg.querySelector('[data-open]').addEventListener('click', async () => {
+      window.open(CLAUDE_URL, '_blank', 'noopener');
+      copied.textContent = (await copyText(ASK)) ? 'คัดลอกข้อความสั่งแล้ว วางในแชตได้เลย' : '';
     });
-    dlg.querySelector('[data-read]').addEventListener('click', () => {
+    dlg.querySelector('[data-copy]').addEventListener('click', async () => {
+      copied.textContent = (await copyText(prompt)) ? 'คัดลอกคำสั่งเต็มแล้ว' : 'คัดลอกไม่สำเร็จ เลือกข้อความแล้วคัดลอกเอง';
+    });
+    const box = dlg.querySelector('#resume-reply');
+    const read = () => {
       try {
-        const draft = parseResumeReply(dlg.querySelector('#resume-reply').value);
+        const draft = parseResumeReply(box.value);
         close();
         onDraft(draft);
       } catch (ex) { err.hidden = false; err.textContent = ex.message; }
-    });
+    };
+    dlg.querySelector('[data-read]').addEventListener('click', read);
+    // Pasting the reply opens the form straight away; if it can't be read, the reason shows instead.
+    box.addEventListener('paste', () => setTimeout(read, 0));
+    box.addEventListener('input', () => { err.hidden = true; });
   }, { wide: true });
 }
