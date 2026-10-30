@@ -13,9 +13,9 @@ const SAFETY = 'วท.บ. อาชีวอนามัยและควา�
 // Made-up 1–5 dimension scores near each HR Match; D104 is left unscored.
 const DIM_KEYS = ['exp', 'skill', 'result', 'career', 'learn', 'trust', 'tech'];
 const withScores = (c) => {
-  if (c.id === 'D104') return { ...c, scores: {} };
+  if (c.id === 'D104') return { ...c, scores: {}, preInterviewed: false };
   const n = Number(c.id.slice(1)), base = Math.round(c.match * 5);
-  return { ...c, scores: Object.fromEntries(DIM_KEYS.map((k, i) => [k, Math.max(1, Math.min(5, base + ((n + i * 2) % 3) - 1))])) };
+  return { ...c, preInterviewed: n % 3 !== 0, scores: Object.fromEntries(DIM_KEYS.map((k, i) => [k, Math.max(1, Math.min(5, base + ((n + i * 2) % 3) - 1))])) };
 };
 
 export const SEED_CANDIDATES = [

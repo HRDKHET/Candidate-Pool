@@ -2,7 +2,7 @@
 // candidate profiles, interview calendar, comparison and notifications.
 import {
   esc, ICONS, LOGO, POOL, HRS, MODE_LABEL, avatarFor, recommendationFor, recLabel, unitFullLabel,
-  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore, clip, NOTE_FROM
+  fmtDate, fmtDateTime, baht, pct, toast, confirmDialog, errorMessage, isNew, NEW_BADGE, NEW_TAG, holdLeft, safeUrl, goHome, matchColor, candScore, clip, NOTE_FROM, preTag
 } from '../ui.js';
 import { CONFIG } from '../config.js';
 import * as anim from '../anim.js';
@@ -94,6 +94,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี · อายุ ${esc(c.age ?? '—')}</span>
+          <span class="card-tags">${preTag(c)}</span>
         </div>
         <div class="match"><strong style="color:${mc.text}">${pct(candScore(c))}</strong><span>Candidate Score</span></div>
       </div>
@@ -136,6 +137,7 @@ export function mountPjt(root, { store, session, signOut, onCleanup }) {
           <span class="card-id">${esc(c.id)} · Prescreen ${esc(fmtDate(c.prescreenDate))}</span>
           <h2><button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button></h2>
           <span class="muted" style="font-size:15px">${esc(c.position || '—')} · ${esc(c.experience ?? '—')} ปี${showSalary(c) ? ` · คาดหวัง ${baht(c.salaryExpected)}` : ''}</span>
+          <span class="card-tags">${preTag(c)}</span>
         </div>
         <div class="match"><strong style="font-size:26px;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</strong><span>Candidate Score</span></div>
       </div>

@@ -1,5 +1,5 @@
 // Side-by-side candidate comparison on a radar (spider) chart, up to 4 at once.
-import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS, dimTip, dimInfo, candScore } from './ui.js';
+import { esc, ICONS, HRS, pct, openModal, isNew, NEW_BADGE, DIMENSIONS, dimTip, dimInfo, candScore, scoreNote } from './ui.js';
 import * as anim from './anim.js';
 import { positionsOf } from './filters.js';
 
@@ -122,6 +122,7 @@ export function openCompare(all, preselected = [], { pos = 'all' } = {}) {
           </table>
         </div>
         ${sel.some((c) => scoredCount(c) < dims.length) ? `<p class="muted" style="font-size:13px">— คือมิติที่ ${esc(HRS)} ยังไม่ให้คะแนน (แสดงที่จุดกึ่งกลางกราฟ)</p>` : ''}
+        ${scoreNote()}
         <p class="muted" style="font-size:12px">ตัวเลขสีเขียวคือคะแนนสูงสุดของมิตินั้น คะแนนเป็นตัวช่วยประกอบการตัดสินใจ ไม่ใช่ผลการประเมินสุดท้าย</p>`;
       anim.radar(chartEl.querySelectorAll('.radar-shape'));
     };

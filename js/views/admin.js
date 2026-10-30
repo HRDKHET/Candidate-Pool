@@ -3,7 +3,7 @@
 import {
   esc, ICONS, LOGO, POOL, HRS, LOCATIONS, DECISIONS, DECISION_STYLE, RECOMMENDATIONS, recLabel, DIMENSIONS, dimInfo, cleanScores, MODE_LABEL,
   INTERVIEW_STATUS, locStyle, locLabel, unitFullLabel, pct, fmtDateTime, toast, openModal,
-  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM, nextCandidateIds
+  confirmDialog, errorMessage, isNew, NEW_BADGE, holdLeft, DIVISIONS, setOrg, isWebUrl, goHome, matchColor, candScore, NOTE_FROM, nextCandidateIds, preTag, scoreNote
 } from '../ui.js';
 import * as anim from '../anim.js';
 import { newFilterState, positionsOf, applyFilters, groupByPosition, filterBarHTML, updateFilter } from '../filters.js';
@@ -47,13 +47,16 @@ const PERMS = [
 export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   const st = {
     tab: 'overview', list: [], users: [], notifs: [], loc: 'all', q: '', loading: true, error: '',
-    animate: true, month: monthStart(), f: newFilterState()
+    animate: true, month: monthStart(), f: newFilterState(),
+    sel: new Set() // candidate ids ticked on ผู้สมัครทั้งหมด, for bulk actions
   };
 
   async function reload({ animate = false } = {}) {
     try {
       const [list, users] = await Promise.all([store.listCandidates(), store.listUsers()]);
       st.list = list; st.users = users; st.error = '';
+      const ids = new Set(list.map((c) => c.id));
+      for (const id of st.sel) if (!ids.has(id)) st.sel.delete(id);
     } catch (e) { st.error = errorMessage(e); }
     try { st.notifs = await store.listNotifications(); } catch (e) { /* keep previous */ }
     st.loading = false;
@@ -132,10 +135,89 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     </div>`;
   }
 
-  function pool() {
+  // Bar above the table while candidates are ticked: actions apply to every ticked candidate.
+  function bulkBar(rows) {
+    const n = st.sel.size;
+    if (!n) return '';
+    const hidden = [...st.sel].filter((id) => !rows.some((c) => c.id === id)).length;
+    return `
+    <div class="bulk-bar" role="region" aria-label="จัดการผู้สมัครที่เลือก">
+      <strong>เลือกแล้ว ${n} คน</strong>${hidden ? `<span class="muted">(ไม่อยู่ในตัวกรองตอนนี้ ${hidden} คน)</span>` : ''}
+      <div class="bulk-actions">
+        <label class="sr-only" for="bulk-move">ส่งผู้สมัครที่เลือกเข้า Pool</label>
+        <select id="bulk-move" class="table-select" data-bulk-move>
+          <option value="">ส่งเข้า Pool…</option>
+          ${LOCATIONS.map((l) => `<option value="${esc(l)}">${l === POOL ? 'ดึงกลับ Candidate Pool' : esc(unitFullLabel(l))}</option>`).join('')}
+        </select>
+        <button type="button" class="btn btn-sm" data-bulk="pre">Pre-interview แล้ว</button>
+        <button type="button" class="btn btn-sm" data-bulk="salary-on">แผนกเห็นเงินเดือน</button>
+        <button type="button" class="btn btn-sm" data-bulk="salary-off">ซ่อนเงินเดือน</button>
+        <button type="button" class="btn btn-sm" data-bulk="compare" ${n >= 2 && n <= 4 ? '' : 'disabled title="เลือก 2–4 คน"'}>${ICONS.radar} เปรียบเทียบ</button>
+        <button type="button" class="btn btn-sm" data-bulk="export">ส่งออก Excel</button>
+        <button type="button" class="btn btn-sm btn-danger" data-bulk="delete">${ICONS.trash} ลบ</button>
+        <button type="button" class="btn btn-sm" data-bulk="clear">ยกเลิกการเลือก</button>
+      </div>
+    </div>`;
+  }
+  // Runs one store call per ticked candidate, then reloads once.
+  async function bulkRun(label, each, opts) {
+    const ids = [...st.sel];
+    let done = 0, failed = 0;
+    for (const id of ids) {
+      try { await each(byId(id)); done++; } catch (e) { failed++; }
+    }
+    st.sel.clear();
+    await reload();
+    toast(`${label} ${done} คนแล้ว${failed ? ` · ไม่สำเร็จ ${failed} คน` : ''}`, failed ? { error: true } : opts);
+  }
+  async function bulkAction(kind) {
+    const picked = [...st.sel].map(byId).filter(Boolean);
+    if (kind === 'clear') { st.sel.clear(); return render(); }
+    if (kind === 'compare') return openCompare(st.list, picked.map((c) => c.id));
+    if (kind === 'export') {
+      try { const { exportWorkbook } = await import('../excel.js'); await exportWorkbook(picked); }
+      catch (ex) { toast(errorMessage(ex), { error: true }); }
+      return;
+    }
+    if (kind === 'pre') return bulkRun('ทำเครื่องหมาย Pre-interview', (c) => store.saveCandidate({ ...c, preInterviewed: true }, false));
+    if (kind === 'salary-on' || kind === 'salary-off') {
+      const on = kind === 'salary-on';
+      return bulkRun(on ? 'ให้แผนกเห็นเงินเดือน' : 'ซ่อนเงินเดือน', (c) => store.setShowSalary(c.id, on));
+    }
+    if (kind === 'delete') {
+      const ok = await confirmDialog({
+        title: `ลบผู้สมัคร ${picked.length} คน?`,
+        body: `${picked.slice(0, 5).map((c) => `${c.id} ${c.name}`).join(', ')}${picked.length > 5 ? ` และอีก ${picked.length - 5} คน` : ''} จะถูกลบถาวรและกู้คืนไม่ได้`,
+        confirm: 'ลบถาวร', danger: true
+      });
+      if (ok) return bulkRun('ลบผู้สมัคร', (c) => store.deleteCandidate(c.id));
+    }
+  }
+  async function bulkMove(to) {
+    const picked = [...st.sel].map(byId).filter((c) => c && c.location !== to);
+    if (!picked.length) { toast(`ผู้สมัครที่เลือกอยู่ที่ ${locLabel(to)} แล้ว`); return render(); }
+    const ok = await confirmDialog({
+      title: to === POOL ? `ดึง ${picked.length} คนกลับ Candidate Pool?` : `ส่ง ${picked.length} คนเข้า Pool ${to}?`,
+      body: 'สถานะจะกลับเป็น "รอพิจารณา" และนัดสัมภาษณ์เดิมจะถูกยกเลิก', confirm: 'ย้าย'
+    });
+    if (!ok) return render();
+    const from = new Map(picked.map((c) => [c.id, c.location]));
+    st.sel = new Set(picked.map((c) => c.id));
+    return bulkRun(to === POOL ? 'ดึงกลับ Candidate Pool' : `ส่งเข้า Pool ${to}`, (c) => store.moveTo(c.id, to), {
+      action: 'เลิกทำ',
+      onAction: () => { st.sel = new Set(from.keys()); bulkRun('ย้ายกลับที่เดิม', (c) => store.moveTo(c.id, from.get(c.id))); }
+    });
+  }
+
+  // Candidates shown in the table with the current Pool chip, search and filters.
+  const visibleRows = () => {
     const q = st.q.trim().toLowerCase();
-    const rows = applyFilters(st.list, st.f).filter((c) => (st.loc === 'all' || c.location === st.loc) &&
+    return applyFilters(st.list, st.f).filter((c) => (st.loc === 'all' || c.location === st.loc) &&
       (!q || `${c.id} ${c.name} ${c.position}`.toLowerCase().includes(q)));
+  };
+
+  function pool() {
+    const rows = visibleRows();
     const chips = [['all', 'ทั้งหมด', st.list.length], ...LOCATIONS.map((l) => [l, locLabel(l), st.list.filter((c) => c.location === l).length])];
     const groups = groupByPosition(rows, st.f.group);
     return `
@@ -146,19 +228,21 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
       <div class="search"><label for="adm-search" class="sr-only">ค้นหาผู้สมัคร</label>${ICONS.search}<input id="adm-search" class="input" type="search" placeholder="ค้นหาชื่อ, ID หรือตำแหน่ง" value="${esc(st.q)}"></div>
     </div>
     ${filterBarHTML(st.f, positionsOf(st.list), { prefix: 'af', dirty: !!st.q || st.loc !== 'all' })}
+    ${bulkBar(rows)}
     <div class="table-wrap pool-wrap">
       <table class="pool-table">
-        <thead><tr><th scope="col">ผู้สมัคร</th><th scope="col">Candidate Score</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
+        <thead><tr><th scope="col" class="pool-check"><label class="sr-only" for="sel-all">เลือกทั้งหมดที่แสดง</label><input type="checkbox" id="sel-all" data-sel-all ${rows.length && rows.every((c) => st.sel.has(c.id)) ? 'checked' : ''} title="เลือกทั้งหมดที่แสดง ${rows.length} คน"></th><th scope="col">ผู้สมัคร</th><th scope="col">Candidate Score</th><th scope="col" title="ให้แผนกเห็นเงินเดือน">เงินเดือน</th><th scope="col">Executive Decision</th><th scope="col">นัดสัมภาษณ์</th><th scope="col">อยู่ที่</th><th scope="col">ย้าย</th><th scope="col"><span class="sr-only">แก้ไข</span></th></tr></thead>
         <tbody>
-          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="8">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
+          ${rows.length ? groups.map(([pos, items]) => (pos ? `<tr class="group-row"><th scope="rowgroup" colspan="9">${esc(pos)} <span class="count">${items.length}</span></th></tr>` : '') + items.map((c) => {
             const ds = DECISION_STYLE[c.decision] || DECISION_STYLE['รอพิจารณา'];
             const ls = locStyle(c.location);
             const ist = INTERVIEW_STATUS[c.interviewStatus];
             const hold = holdLeft(c);
             return `<tr data-row="${esc(c.id)}" title="คลิกเพื่อดูข้อมูลและจัดการ ${esc(c.id)}">
+              <td class="pool-check" data-label="เลือก"><label class="sr-only" for="sel-${esc(c.id)}">เลือก ${esc(c.id)}</label><input type="checkbox" id="sel-${esc(c.id)}" data-sel="${esc(c.id)}" ${st.sel.has(c.id) ? 'checked' : ''}></td>
               <td class="pool-who">
                 <button type="button" class="name-btn" data-profile="${esc(c.id)}">${esc(c.name)}</button>
-                <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''}</span>
+                <span class="pool-sub"><span class="mono">${esc(c.id)}</span>${pos ? '' : ` · ${esc(c.position || '—')}`}${isNew(c) ? ` ${NEW_BADGE}` : ''} ${preTag(c)}</span>
               </td>
               <td data-label="Candidate Score" style="font-weight:700;color:${matchColor(candScore(c)).text}">${pct(candScore(c))}</td>
               <td data-label="แผนกเห็นเงินเดือน"><button type="button" class="switch switch-sm" role="switch" aria-checked="${!!c.showSalary}" aria-label="ให้แผนกเห็นเงินเดือนของ ${esc(c.id)}" title="${c.showSalary ? 'แผนกเห็นเงินเดือน' : 'แผนกไม่เห็นเงินเดือน'}" data-salary="${esc(c.id)}"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="switch-text">${c.showSalary ? 'แสดง' : 'ซ่อน'}</span></button></td>
@@ -175,7 +259,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
                 </select></td>
               <td class="pool-edit"><button type="button" class="btn btn-sm" data-edit="${esc(c.id)}">แก้ไข</button></td>
             </tr>`;
-          }).join('')).join('') : '<tr><td colspan="8" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
+          }).join('')).join('') : '<tr><td colspan="9" class="muted" style="padding:32px;text-align:center">ไม่พบผู้สมัครตามเงื่อนไข</td></tr>'}
         </tbody>
       </table>
     </div>`;
@@ -336,6 +420,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         ${f('cvUrl', 'ลิงก์ Resume / CV', v.cvUrl, 'url')}
         ${f('salaryCurrent', 'เงินเดือนปัจจุบัน', v.salaryCurrent, 'number')}
         ${f('salaryExpected', 'เงินเดือนคาดหวัง', v.salaryExpected, 'number')}
+        <label class="span-2 pre-check"><input type="checkbox" name="preInterviewed" ${v.preInterviewed ? 'checked' : ''}><span>Pre-interview แล้ว <span class="muted" style="font-weight:500">· การ์ดผู้สมัครจะแสดง "Pre-interviewed"</span></span></label>
         <label class="span-2" style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;min-height:44px"><input type="checkbox" name="showSalary" ${v.showSalary ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--violet)">ให้แผนกเห็นเงินเดือนของผู้สมัครรายนี้</label>
         ${f('prescreenDate', 'วันที่ Prescreen', v.prescreenDate, 'date')}
         <div class="field"><label for="cf-rec">HR Recommendation</label><select id="cf-rec" name="recommendation" class="input"><option value="">อัตโนมัติจาก Candidate Score</option>${RECOMMENDATIONS.map((r) => `<option value="${r}" ${r === v.recommendation ? 'selected' : ''}>${recLabel(r)}</option>`).join('')}</select></div>
@@ -343,6 +428,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
         <div class="field span-2"><label for="cf-note">ความเห็นจาก ${esc(NOTE_FROM)} (HR Highlight) <span class="muted" style="font-weight:500">· การ์ดแสดง 30 ตัวอักษรแรก</span></label><textarea id="cf-note" name="hrNote" class="input" rows="${draft ? 5 : 3}">${esc(v.hrNote || '')}</textarea></div>
         <fieldset class="span-2 score-set">
           <legend>คะแนนรายมิติ (1 ต่ำ – 5 สูง) ใช้คำนวณ Candidate Score และกราฟเปรียบเทียบ</legend>
+          ${scoreNote('span-all')}
           ${DIMENSIONS.map((dm) => `<div class="field"><span style="display:flex;align-items:center;gap:6px"><label for="cf-s-${dm.key}">${esc(dm.full)}</label>${dimInfo(dm)}</span><select id="cf-s-${dm.key}" name="s_${dm.key}" class="input"><option value="">ยังไม่ให้คะแนน</option>${[5, 4, 3, 2, 1].map((x) => `<option ${(v.scores || {})[dm.key] === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${draft && draft.reasons[dm.key] ? `<span class="ai-reason">Claude: ${esc(draft.reasons[dm.key])}</span>` : ''}</div>`).join('')}
         </fieldset>
         <div class="error-box span-2" data-err hidden role="alert"></div>
@@ -387,6 +473,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
           prescreenDate: d.prescreenDate || null,
           decision: (c && c.decision) || 'รอพิจารณา',
           showSalary: form.elements.showSalary.checked,
+          preInterviewed: form.elements.preInterviewed.checked,
           scores,
           assignedBy: d.location === POOL ? null : (c && c.location === d.location ? c.assignedBy : 'HR')
         };
@@ -648,6 +735,7 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
     if ((el = t('[data-compare-open]'))) return openCompare(st.list, [], { pos: st.f.pos });
     if ((el = t('[data-f-group]'))) { st.f.group = !st.f.group; return render(); }
     if ((el = t('[data-f-clear]'))) { st.f = newFilterState(); st.q = ''; st.loc = 'all'; render(); toast('ล้างตัวกรองแล้ว'); return; }
+    if ((el = t('[data-bulk]'))) return bulkAction(el.dataset.bulk);
     if ((el = t('[data-profile]'))) return candidatePopup(byId(el.dataset.profile));
     // A click anywhere on a candidate row (not on its own controls) opens the same popup.
     if ((el = t('tr[data-row]')) && el.dataset.row && !t('button, a, input, select, label')) return candidatePopup(byId(el.dataset.row));
@@ -685,6 +773,9 @@ export function mountAdmin(root, { store, session, signOut, onCleanup }) {
   };
   root.onchange = (e) => {
     const el = e.target;
+    if (el.dataset.sel) { el.checked ? st.sel.add(el.dataset.sel) : st.sel.delete(el.dataset.sel); return render(); }
+    if (el.dataset.selAll !== undefined) { visibleRows().forEach((c) => (el.checked ? st.sel.add(c.id) : st.sel.delete(c.id))); return render(); }
+    if (el.dataset.bulkMove !== undefined) { return el.value ? bulkMove(el.value) : undefined; }
     if (updateFilter(st.f, el)) {
       render();
       const back = root.querySelector('#' + el.id);

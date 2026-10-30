@@ -287,6 +287,10 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
   .pool-table .pool-edit { justify-content: flex-end; }
   .pool-table .table-select { width: 100%; }
   .pool-table .switch-text { display: inline; }
+  .pool-table tr[data-row] { position: relative; }
+  .pool-table td.pool-check { position: absolute; top: 12px; right: 14px; }
+  .pool-table td.pool-check::before { display: none; }
+  .pool-table .pool-who { padding-right: 44px !important; }
 }
 
 /* ---------- modal & toast ---------- */
@@ -432,3 +436,23 @@ tbody th { color: var(--ink); border-top: 1px solid #EFEDE7; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+/* Pre-interview status (preTag in ui.js) */
+.pre-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; background: #ECEBE7; color: #5F5E58; font-size: 12px; font-weight: 700; white-space: nowrap; vertical-align: middle; }
+.pre-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .6; }
+.pre-tag.yes { background: #E3F7E8; color: #2B8A3E; }
+.card-tags { display: flex; gap: 6px; margin-top: 4px; }
+.profile-status .pre-tag { font-size: 13px; padding: 6px 12px; }
+.pre-check { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; min-height: 44px; }
+.pre-check input { width: 20px; height: 20px; accent-color: var(--violet); }
+.score-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 12px; background: #FFF6D6; color: #5C4300; font-size: 13px; line-height: 1.5; }
+.score-note svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.score-set .score-note { grid-column: 1 / -1; }
+/* Bulk selection on ผู้สมัครทั้งหมด */
+.pool-table .pool-check { width: 44px; text-align: center; }
+.pool-table .pool-check input { width: 20px; height: 20px; accent-color: var(--violet); cursor: pointer; vertical-align: middle; }
+.bulk-bar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 12px 16px; border-radius: var(--radius-md); background: #1F1A3D; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.bulk-bar .muted { color: #CFC9F5; font-size: 13px; }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.bulk-bar .btn:not(.btn-danger) { background: #fff; border-color: #fff; color: var(--ink); }
+.bulk-bar .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.bulk-bar .table-select { width: auto; min-width: 180px; background: #fff; color: var(--ink); }

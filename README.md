@@ -70,6 +70,7 @@ npx serve .
    และ `supabase/009_dimension_scores.sql` (คะแนนรายมิติ 1–5 ที่ HRS ให้ ใช้ในกราฟเปรียบเทียบ)
    และ `supabase/010_no_past_interviews.sql` (ฐานข้อมูลไม่รับนัดสัมภาษณ์ในวันหรือเวลาที่ผ่านไปแล้ว)
    และ `supabase/011_candidate_contacts.sql` (อีเมลและเบอร์โทรศัพท์ผู้สมัคร เห็นเฉพาะ HRS)
+   และ `supabase/012_pre_interview.sql` (HRS ติ๊กว่าผู้สมัคร Pre-interview แล้วหรือยัง แสดงบนการ์ด)
 6. **Project Settings › API Keys**: คัดลอก Project URL และ publishable key ใส่ใน `js/config.js` แล้วเปลี่ยน `mode: 'supabase'`
    (anon key ออกแบบมาให้เปิดเผยได้ ความปลอดภัยมาจาก row-level security แต่ **ห้ามใส่ `service_role` key เด็ดขาด**)
 7. เข้าสู่ระบบด้วยบัญชี Admin › Candidate Pool › **นำเข้าจาก Excel** แล้วเลือกไฟล์ `.xlsm` เดิม

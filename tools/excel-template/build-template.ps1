@@ -66,6 +66,7 @@ try {
     switch ($col.kind) {
       'rec'      { $v.Add(3, 1, 1, $cfg.rec) }
       'decision' { $v.Add(3, 1, 1, $cfg.decisions) }
+      'yesno'    { $v.Add(3, 1, 1, 'Yes,No') }
       'score'    { $v.Add(1, 1, 1, '1', '5'); $v.ErrorMessage = 'ใส่ตัวเลขจำนวนเต็ม 1 ถึง 5 หรือเว้นว่าง' }
       'int'      { $v.Add(1, 1, 1, '15', '80'); $v.ErrorMessage = 'ใส่อายุเป็นตัวเลข 15 ถึง 80' }
       'num'      { $v.Add(2, 1, 1, '0', '60'); $v.ErrorMessage = 'ใส่ตัวเลข 0 ถึง 60' }
@@ -79,7 +80,7 @@ try {
     $v.InputTitle = $title
     $msg = [string]$desc; if ($msg.Length -gt 250) { $msg = $msg.Substring(0, 250) }
     $v.InputMessage = $msg; $v.ShowInput = $true
-    if ($col.kind -in @('rec', 'decision')) { $v.ShowError = $true; $v.ErrorMessage = 'เลือกจากรายการเท่านั้น' }
+    if ($col.kind -in @('rec', 'decision', 'yesno')) { $v.ShowError = $true; $v.ErrorMessage = 'เลือกจากรายการเท่านั้น' }
 
     for ($e = 0; $e -lt 3; $e++) {
       $val = $col.ex[$e]
@@ -130,7 +131,7 @@ try {
   $th = $hs.Range($hs.Cells.Item($row, 1), $hs.Cells.Item($row, 5))
   $th.Interior.Color = Rgb @(17, 17, 17); $th.Font.Color = Rgb @(255, 255, 255); $th.Font.Bold = $true
   $top = $row; $row++
-  $kindText = @{ id = 'ข้อความ'; text = 'ข้อความ'; long = 'ข้อความยาว'; int = 'ตัวเลข'; num = 'ตัวเลข'; money = 'ตัวเลข (บาท)'; date = 'วันที่'; datetime = 'วันที่และเวลา'; rec = 'เลือกจากรายการ'; decision = 'เลือกจากรายการ'; score = 'ตัวเลข 1–5' }
+  $kindText = @{ id = 'ข้อความ'; text = 'ข้อความ'; long = 'ข้อความยาว'; int = 'ตัวเลข'; num = 'ตัวเลข'; money = 'ตัวเลข (บาท)'; date = 'วันที่'; datetime = 'วันที่และเวลา'; rec = 'เลือกจากรายการ'; decision = 'เลือกจากรายการ'; yesno = 'Yes / No'; score = 'ตัวเลข 1–5' }
   foreach ($col in $cols) {
     $hs.Cells.Item($row, 1).Value2 = $col.h
     $hs.Cells.Item($row, 2).Value2 = if ($col.req) { 'ต้องกรอก' } else { '' }

@@ -15,6 +15,7 @@ const HEADERS = {
   'ประสบการณ์รวม (ปี)': 'experience', 'การศึกษา': 'education',
   'recume/cv': 'companyOrCv', 'resume/cv': 'companyOrCv', 'บริษัทล่าสุด': 'company',
   'เงินเดือนปัจจุบัน': 'salaryCurrent', 'เงินเดือนคาดหวัง': 'salaryExpected', 'hr match %': 'match',
+  'pre-interview': 'pre', 'pre interview': 'pre',
   'email': 'email', 'อีเมล': 'email', 'เบอร์โทรศัพท์': 'phone', 'เบอร์โทร': 'phone', 'โทรศัพท์': 'phone',
   'วันที่ precreen': 'prescreenDate', 'วันที่ prescreen': 'prescreenDate', 'วันที่รับใบสมัคร': 'prescreenDate',
   'hr recommendation': 'recOrNote', 'hr highlight': 'hrNote', 'executive decision': 'decision',
@@ -67,6 +68,7 @@ export async function parseWorkbook(file, existing = []) {
     const hasScores = fields.some((f) => f && f.startsWith('score:'));
     // Likewise, contacts are written only when the sheet has an email or phone column.
     const hasContacts = fields.includes('email') || fields.includes('phone');
+    const hasPre = fields.includes('pre');
     let count = 0;
     for (const r of rows.slice(hIdx + 1)) {
       const raw = {};
@@ -107,6 +109,7 @@ export async function parseWorkbook(file, existing = []) {
         projectName: String(raw.projectName ?? '').trim(),
         remark: String(raw.remark ?? '').trim(),
         location, assignedBy: location === POOL ? null : 'HR',
+        ...(hasPre ? { preInterviewed: /^(yes|y|true|1|ใช่|แล้ว|✓|✔)$/i.test(String(raw.pre ?? '').trim()) } : {}),
         ...(hasContacts ? { email: String(raw.email ?? '').trim(), phone: phoneText(raw.phone) } : {}),
         ...(hasScores ? { scores: cleanScores(Object.fromEntries(DIMENSIONS.map((d) => [d.key, raw['score:' + d.key]]))) } : {})
       };
@@ -131,7 +134,7 @@ export async function exportWorkbook(candidates) {
   const rows = candidates.map((c) => ({
     'Candidate ID': c.id, 'ชื่อ-นามสกุล': c.name, 'ตำแหน่ง': c.position, 'อายุ': c.age,
     'ประสบการณ์รวม (ปี)': c.experience, 'การศึกษา': c.education, 'บริษัทล่าสุด': c.company,
-    'Email': c.email || '', 'เบอร์โทรศัพท์': c.phone || '',
+    'Pre-interview': c.preInterviewed ? 'Yes' : 'No', 'Email': c.email || '', 'เบอร์โทรศัพท์': c.phone || '',
     'Resume/CV': c.cvUrl, 'เงินเดือนปัจจุบัน': c.salaryCurrent, 'เงินเดือนคาดหวัง': c.salaryExpected,
     'Candidate Score %': candScore(c) == null ? '' : Math.round(candScore(c) * 100), 'วันที่ Prescreen': c.prescreenDate, 'HR Recommendation': recLabel(c.recommendation),
     'HR Highlight': c.hrNote, 'Executive Decision': c.decision,
